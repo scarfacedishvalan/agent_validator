@@ -1,0 +1,92 @@
+[
+  {
+    "key": "HML_valuation_zscore",
+    "label": "HML valuation z-score",
+    "group": "Value - HML",
+    "unit": "z-score",
+    "displayScale": 1,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Value factor valuation relative to its long-run history."
+  },
+  {
+    "key": "HML_return_1m",
+    "label": "HML return - 1 month",
+    "group": "Value - HML",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing one-month return for the value factor."
+  },
+  {
+    "key": "HML_return_3m",
+    "label": "HML return - 3 months",
+    "group": "Value - HML",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing three-month return for the value factor."
+  },
+  {
+    "key": "HML_return_12m",
+    "label": "HML return - 12 months",
+    "group": "Value - HML",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing twelve-month return for the value factor."
+  },
+  {
+    "key": "RMW_return_3m",
+    "label": "RMW return - 3 months",
+    "group": "Quality - RMW",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing three-month return for the profitability factor."
+  },
+  {
+    "key": "RMW_return_12m",
+    "label": "RMW return - 12 months",
+    "group": "Quality - RMW",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing twelve-month return for the profitability factor."
+  },
+  {
+    "key": "MOM_return_1m",
+    "label": "MOM return - 1 month",
+    "group": "Momentum - MOM",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing one-month return for the momentum factor."
+  },
+  {
+    "key": "MOM_return_12m",
+    "label": "MOM return - 12 months",
+    "group": "Momentum - MOM",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing twelve-month return for the momentum factor."
+  },
+  {
+    "key": "treasury_yield_10y",
+    "label": "10-year Treasury yield",
+    "group": "Macro - Rates",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Constant-maturity 10-year Treasury yield."
+  }
+]

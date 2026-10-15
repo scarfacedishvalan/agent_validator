@@ -1,0 +1,34 @@
+[
+  {
+    "key": "HML",
+    "name": "High Minus Low",
+    "description": "Value factor representing the return of high book-to-market equities minus low book-to-market equities.",
+    "positive_direction": "A positive factor return means the high book-to-market side outperformed the low book-to-market side.",
+    "evidence_metric_keys": [
+      "HML_valuation_zscore",
+      "HML_return_1m",
+      "HML_return_3m",
+      "HML_return_12m"
+    ]
+  },
+  {
+    "key": "RMW",
+    "name": "Robust Minus Weak",
+    "description": "Profitability factor representing the return of firms with robust operating profitability minus firms with weak operating profitability.",
+    "positive_direction": "A positive factor return means the robust profitability side outperformed the weak profitability side.",
+    "evidence_metric_keys": [
+      "RMW_return_3m",
+      "RMW_return_12m"
+    ]
+  },
+  {
+    "key": "MOM",
+    "name": "Momentum",
+    "description": "Momentum factor representing the return of recent outperformers minus recent underperformers.",
+    "positive_direction": "A positive factor return means recent winners outperformed recent losers.",
+    "evidence_metric_keys": [
+      "MOM_return_1m",
+      "MOM_return_12m"
+    ]
+  }
+]

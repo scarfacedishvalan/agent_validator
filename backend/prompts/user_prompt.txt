@@ -1,0 +1,23 @@
+Generate factor-level absolute views from the supplied inputs. 
+Follow the system prompt's output contract exactly.
+
+TARGET_HORIZON:
+{target_horizon}
+
+Q_RETURN_CONVENTION:
+{q_return_convention}
+
+Q_MIN (optional decimal return bound; "not configured" means there is no lower bound):
+{q_min}
+
+Q_MAX (optional decimal return bound; "not configured" means there is no upper bound):
+{q_max}
+
+FACTOR_DEFINITIONS_JSON:
+{factor_definitions_json}
+
+EVIDENCE_METRIC_DEFINITIONS_JSON:
+{metric_definitions_json}
+
+EVIDENCE_SNAPSHOT_JSON:
+{evidence_snapshot_json}
