@@ -1,0 +1,6 @@
+{
+  "target_horizon": "12 months",
+  "q_return_convention": "annualized excess return",
+  "q_min": null,
+  "q_max": null
+}

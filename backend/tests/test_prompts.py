@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import unittest
 
 from app.services.factor_view_prompts import (
@@ -8,6 +10,22 @@ from app.services.factor_view_prompts import (
 
 
 class FactorViewPromptTests(unittest.TestCase):
+    def test_factor_view_defaults_fixture(self):
+        defaults_path = (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "factor_view_defaults.json"
+        )
+        defaults = json.loads(defaults_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(defaults),
+            {"target_horizon", "q_return_convention", "q_min", "q_max"},
+        )
+        self.assertEqual(defaults["target_horizon"], "12 months")
+        self.assertEqual(defaults["q_return_convention"], "annualized excess return")
+        self.assertIsNone(defaults["q_min"])
+        self.assertIsNone(defaults["q_max"])
+
     def test_renders_system_template_without_unresolved_placeholders(self):
         prompt = render_factor_view_system_prompt(
             target_horizon="12 months",
