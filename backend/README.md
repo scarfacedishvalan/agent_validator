@@ -19,6 +19,8 @@ Render client-ready messages with `app.services.factor_view_prompts.render_facto
 
 Default prompt runtime values are in `backend/fixtures/factor_view_defaults.json` (`target_horizon`, `q_return_convention`, `q_min`, and `q_max`). An orchestrator can load this single JSON file and override any values before calling the prompt renderers. `null` bounds mean no configured lower or upper bound.
 
+An AISuite-backed factor-view orchestrator is available as `app.services.orchestrators.factor_view_orchestrator`. Set `OPENAI_API_KEY`, then run from `backend` with `python -m app.services.orchestrators.factor_view_orchestrator`; it uses `evidence_snapshot_example.json` by default. Pass `--snapshot <path>` and optionally `--model openai:<model>` to use another snapshot or model. The orchestrator includes the output schema in the system message and validates the returned JSON and matrix alignment. Its `tools` parameter is reserved and currently unused.
+
 Run the backend tests from this directory:
 
 ```powershell
