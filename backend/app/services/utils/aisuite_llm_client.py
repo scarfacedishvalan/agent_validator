@@ -45,3 +45,8 @@ class AISuiteLLMClient:
         if not isinstance(content, str) or not content.strip():
             raise ValueError("AISuite returned an empty or non-text completion.")
         return content
+
+
+if __name__ == "__main__":
+    client = AISuiteLLMClient()
+    print(client.complete([{"role": "user", "content": "Return an example json object"}]))
