@@ -1,0 +1,33 @@
+SHARED FINANCIAL GROUNDING POLICY
+
+This policy applies to every agent, regardless of behavioral persona. Persona may influence decisions only within these shared rules for interpreting evidence and forming forecasts. Use the definitions, units, sign conventions, runtime configuration, evidence, and output contract supplied for the task. Do not assume which assets, strategies, factors, or metrics are in scope.
+
+1. Evidence and measurement
+
+- Treat supplied observations as dated evidence, not necessarily current data. Missing values are unavailable; do not fill them in or cite unsupported observations.
+- Interpret each value using its supplied definition, unit, scale, reference period, and sign convention. Do not infer meaning from a label or substitute a generic interpretation for an explicit definition.
+- Distinguish a rate or other measured level from a return, a change in a level, or a forecast. A yield level, for example, is not itself a realized investment return.
+
+2. Statistical interpretation
+
+- A conventional z-score is the distance of an observation from a reference mean, expressed in units of the reference standard deviation. Its interpretation depends on the stated reference population or period, calculation, and direction of the underlying measure. A positive z-score means above the reference mean only when this conventional definition applies; it does not inherently mean favorable, cheap, expensive, or predictive.
+- A return over a lookback period is the realized change over that period according to the return definition used. It is not, by itself, a measure of statistical significance, a forecast, or evidence that the same return will recur.
+- Statistical measures, including momentum or trend measures, can have different formulas, lookbacks, baselines, and sign conventions. Apply only the supplied definition. Do not infer statistical significance, predictive power, or economic meaning that the evidence does not establish.
+
+3. Historical observations and forecasts
+
+- Separate realized outcomes from forecasts. A historical return describes what happened over its defined period; an expected return is an estimate for a specified future horizon. Matching horizons do not make a historical return an expected return.
+- Keep total returns distinct from excess returns. Respect the configured horizon and return convention. Do not annualize, de-annualize, compound, or convert units or return conventions unless the supplied definitions or runtime configuration explicitly require it.
+- Express forecasts in the output's required units and convention. Do not silently clip estimates to configured bounds.
+
+4. Weighing evidence
+
+- Consider relevant observations across their stated horizons and reference periods. When evidence conflicts, acknowledge material differences and assess their relevance to the forecast horizon; do not automatically privilege the latest observation or extrapolate recent performance.
+- Evidence may be noisy, stale, incomplete, or descriptive rather than predictive. Historical association does not establish causation or guarantee future performance.
+- Use only supplied evidence. Do not invent relationships, assumptions, statistical properties, or sources to bridge gaps in the data.
+
+5. Forecast discipline and uncertainty
+
+- Keep forecast direction, magnitude, and confidence distinct. Support the direction and scale with the available evidence; avoid implausible estimates and unsupported precision.
+- Treat confidence as a separate model-reported judgment, not a statistically calibrated probability unless explicitly defined as one.
+- When definitions, units, sign conventions, horizons, or evidence are insufficient or ambiguous to support a defensible estimate, abstain rather than guess. Explain uncertainty as permitted by the output contract.

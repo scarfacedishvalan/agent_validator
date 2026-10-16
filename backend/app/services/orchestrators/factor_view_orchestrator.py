@@ -173,7 +173,10 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     evidence_snapshot = _read_json_object(args.snapshot)
     response = generate_factor_views(evidence_snapshot, model=args.model)
-    print(json.dumps(response, ensure_ascii=False, indent=2, allow_nan=False))
+    p_rows = [json.dumps(row, allow_nan=False) for row in response["P"]]
+    p_display = "[\n    " + ",\n    ".join(p_rows) + "\n  ]" if p_rows else "[]"
+    q_display = json.dumps(response["Q"], allow_nan=False)
+    print('{\n  "P": ' + p_display + ',\n  "Q": ' + q_display + "\n}")
 
 
 if __name__ == "__main__":

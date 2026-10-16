@@ -7,3 +7,5 @@
 Both templates accept the runtime horizon, return convention, optional q bounds, factor definitions, and metric definitions. The user template additionally accepts the evidence snapshot. The output schema and example are in `../fixtures/factor_view_output_contract.json`.
 
 Default runtime values for prompt construction are in `../fixtures/factor_view_defaults.json`. An orchestrator can load these values and override them for a particular request before rendering either prompt.
+
+`shared_financial_grounding_policy.txt` defines persona-independent principles for interpreting evidence and forming views. It is intentionally separate from the current prompt templates so it can be incorporated into the system prompt independently of agent-specific behavioral instructions.

@@ -1,11 +1,15 @@
 import json
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from typing import Any, Sequence
+from unittest.mock import patch
 
 from app.services.factor_view_prompts import load_factor_view_output_contract
 from app.services.orchestrators.factor_view_orchestrator import (
     DEFAULT_SNAPSHOT_PATH,
     generate_factor_views,
+    main,
 )
 from app.services.utils.aisuite_llm_client import Message, Tool
 
@@ -31,6 +35,40 @@ class FactorViewOrchestratorTests(unittest.TestCase):
     def setUp(self):
         self.snapshot = json.loads(DEFAULT_SNAPSHOT_PATH.read_text(encoding="utf-8"))
         self.example = load_factor_view_output_contract()["example"]
+
+    def test_cli_prints_only_p_and_q(self):
+        output = StringIO()
+        with (
+            patch(
+                "app.services.orchestrators.factor_view_orchestrator.generate_factor_views",
+                return_value=self.example,
+            ),
+            redirect_stdout(output),
+        ):
+            main([])
+
+        self.assertEqual(
+            json.loads(output.getvalue()),
+            {"P": self.example["P"], "Q": self.example["Q"]},
+        )
+        self.assertEqual(
+            output.getvalue(),
+            '{\n  "P": [\n    [1, 0, 0],\n    [0, 1, 0],\n    [0, 0, 1]\n  ],\n'
+            '  "Q": [[0.04], [0.02], [0.03]]\n}\n',
+        )
+
+    def test_cli_displays_empty_matrices(self):
+        output = StringIO()
+        with (
+            patch(
+                "app.services.orchestrators.factor_view_orchestrator.generate_factor_views",
+                return_value={"P": [], "Q": []},
+            ),
+            redirect_stdout(output),
+        ):
+            main([])
+
+        self.assertEqual(output.getvalue(), '{\n  "P": [],\n  "Q": []\n}\n')
 
     def test_renders_prompts_and_returns_validated_contract_response(self):
         client = StubLLMClient(self.example)
