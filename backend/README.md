@@ -23,8 +23,18 @@ An AISuite-backed factor-view orchestrator is available as `app.services.orchest
 
 The orchestrator CLI prints only `P` and `Q` as JSON, with each `P` row on its own line and all of `Q` on one line; `generate_factor_views()` still returns the full validated response.
 
+Select a behavioral persona using `generate_factor_views(snapshot, personality_key="Contrarian Mean-Reversion Analyst")` or CLI option `--personality "Contrarian Mean-Reversion Analyst"`. The value must be an exact key in `backend/fixtures/personalities.json`; the default is `"Trend-Following Analyst"`. Instructions are inserted into the user prompt and remain subordinate to the shared financial grounding policy and system constraints. Invalid keys or malformed selected instructions fail before the LLM call.
+
 Run the backend tests from this directory:
 
 ```powershell
 py -m unittest discover -s tests -v
 ```
+
+## Repeated-view diagnostics
+
+Open `../factor_view_convergence.ipynb` from the repository root to compare repeated calls on identical evidence. Install `../notebook-requirements.txt` into the selected notebook kernel if needed. The notebook defaults to 10 calls and the trend-following personality; configure the call count, personality key, model, and snapshot before running the live-call cell. Set `OPENAI_API_KEY` securely in the kernel environment.
+
+The plots show individual Q estimates, active-only running means and distributions, and cumulative active-view fractions for every catalog factor. Abstentions remain missing, never zero; full responses remain available for inspecting rationales. Live calls incur API costs, and errors stop the batch without silently skipping or retrying failures. These diagnostics assess repeatability, not forecast accuracy or proof of convergence.
+
+Each batch saves a single uniquely named JSON under `convergence_results/` (excluded from Git). It includes every full response and the experiment inputs, with an atomic checkpoint after each successful iteration. Check `complete` and the requested/completed iteration counts before treating a saved batch as finished. Configure `OUTPUT_DIR` in the notebook or pass `output_path` to `collect_runs()`; an existing output file is rejected rather than overwritten.

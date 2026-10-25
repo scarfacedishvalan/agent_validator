@@ -5,7 +5,12 @@ from io import StringIO
 from typing import Any, Sequence
 from unittest.mock import patch
 
-from app.services.factor_view_prompts import load_factor_view_output_contract
+from app.services.factor_view_prompts import (
+    DEFAULT_PERSONALITY_KEY,
+    PERSONALITIES_PATH,
+    load_agent_personality,
+    load_factor_view_output_contract,
+)
 from app.services.orchestrators.factor_view_orchestrator import (
     DEFAULT_SNAPSHOT_PATH,
     generate_factor_views,
@@ -42,11 +47,14 @@ class FactorViewOrchestratorTests(unittest.TestCase):
             patch(
                 "app.services.orchestrators.factor_view_orchestrator.generate_factor_views",
                 return_value=self.example,
-            ),
+            ) as generate,
             redirect_stdout(output),
         ):
-            main([])
+            main(["--model", "openai:gpt-4o"])
 
+        generate.assert_called_once_with(
+            self.snapshot, personality_key=DEFAULT_PERSONALITY_KEY, model="openai:gpt-4o"
+        )
         self.assertEqual(
             json.loads(output.getvalue()),
             {"P": self.example["P"], "Q": self.example["Q"]},
@@ -70,6 +78,20 @@ class FactorViewOrchestratorTests(unittest.TestCase):
 
         self.assertEqual(output.getvalue(), '{\n  "P": [],\n  "Q": []\n}\n')
 
+    def test_cli_forwards_selected_personality(self):
+        key = "Contrarian Mean-Reversion Analyst"
+        with (
+            patch(
+                "app.services.orchestrators.factor_view_orchestrator.generate_factor_views",
+                return_value=self.example,
+            ) as generate,
+            redirect_stdout(StringIO()),
+        ):
+            main(["--personality", key, "--model", "openai:test-model"])
+        generate.assert_called_once_with(
+            self.snapshot, personality_key=key, model="openai:test-model"
+        )
+
     def test_renders_prompts_and_returns_validated_contract_response(self):
         client = StubLLMClient(self.example)
         tools = [{"type": "function", "function": {"name": "reserved"}}]
@@ -81,9 +103,37 @@ class FactorViewOrchestratorTests(unittest.TestCase):
         system_prompt = client.messages[0]["content"]
         user_prompt = client.messages[1]["content"]
         self.assertIn("OUTPUT_JSON_SCHEMA:", system_prompt)
+        self.assertIn("SHARED FINANCIAL GROUNDING POLICY", system_prompt)
+        self.assertNotIn("{shared_financial_grounding_policy}", system_prompt)
         self.assertIn('"const": "abstain"', system_prompt)
         self.assertIn('"HML_return_1m": -0.032', user_prompt)
+        self.assertIn(load_agent_personality(DEFAULT_PERSONALITY_KEY), user_prompt)
+        self.assertNotIn("{agent_personality}", user_prompt)
         self.assertEqual(client.tools, tools)
+
+    def test_each_personality_reaches_user_prompt_without_changing_system_prompt(self):
+        personalities = json.loads(PERSONALITIES_PATH.read_text(encoding="utf-8"))
+        system_prompts = []
+        for key, sentences in personalities.items():
+            with self.subTest(personality_key=key):
+                client = StubLLMClient(self.example)
+                result = generate_factor_views(
+                    self.snapshot, personality_key=key, llm_client=client
+                )
+                self.assertEqual(result, self.example)
+                self.assertIn(key, client.messages[1]["content"])
+                self.assertIn("\n".join(sentences), client.messages[1]["content"])
+                self.assertNotIn("{agent_personality}", client.messages[1]["content"])
+                system_prompts.append(client.messages[0]["content"])
+        self.assertTrue(all(prompt == system_prompts[0] for prompt in system_prompts))
+
+    def test_unknown_personality_fails_before_llm_call(self):
+        client = StubLLMClient(self.example)
+        with self.assertRaisesRegex(ValueError, "Unknown personality key"):
+            generate_factor_views(
+                self.snapshot, personality_key="unknown", llm_client=client
+            )
+        self.assertEqual(client.messages, [])
 
     def test_rejects_inconsistent_p_and_q(self):
         invalid_response = json.loads(json.dumps(self.example))

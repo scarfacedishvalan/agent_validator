@@ -7,6 +7,13 @@ from typing import Any, Mapping, Sequence
 
 USER_PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "user_prompt.txt"
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "system_prompt.txt"
+PERSONALITIES_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "personalities.json"
+DEFAULT_PERSONALITY_KEY = "Trend-Following Analyst"
+SHARED_FINANCIAL_GROUNDING_POLICY_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "prompts"
+    / "shared_financial_grounding_policy.txt"
+)
 OUTPUT_CONTRACT_PATH = (
     Path(__file__).resolve().parents[2]
     / "fixtures"
@@ -24,6 +31,33 @@ def load_factor_view_output_contract(
     return contract
 
 
+def load_agent_personality(
+    personality_key: str,
+    personalities_path: Path = PERSONALITIES_PATH,
+) -> str:
+    """Resolve a personality key to its newline-separated instructions."""
+    if not personality_key.strip():
+        raise ValueError("personality_key must not be blank.")
+    personalities = json.loads(personalities_path.read_text(encoding="utf-8"))
+    if not isinstance(personalities, dict):
+        raise ValueError("Personalities must be a JSON object keyed by personality name.")
+    if personality_key not in personalities:
+        available = ", ".join(personalities)
+        raise ValueError(
+            f"Unknown personality key {personality_key!r}. Available keys: {available}."
+        )
+    sentences = personalities[personality_key]
+    if (
+        not isinstance(sentences, list)
+        or not sentences
+        or not all(isinstance(sentence, str) and sentence.strip() for sentence in sentences)
+    ):
+        raise ValueError(
+            f"Personality {personality_key!r} must be a non-empty array of non-blank strings."
+        )
+    return "\n".join(sentence.strip() for sentence in sentences)
+
+
 def render_factor_view_user_prompt(
     *,
     target_horizon: str,
@@ -34,6 +68,7 @@ def render_factor_view_user_prompt(
     metric_definitions: Sequence[Mapping[str, Any]],
     evidence_snapshot: Mapping[str, Any],
     template_path: Path = USER_PROMPT_PATH,
+    personality_key: str = DEFAULT_PERSONALITY_KEY,
 ) -> str:
     if not target_horizon.strip():
         raise ValueError("target_horizon must not be blank.")
@@ -48,6 +83,9 @@ def render_factor_view_user_prompt(
         factor_definitions,
         metric_definitions,
     )
+    values["agent_personality"] = (
+        personality_key + "\n" + load_agent_personality(personality_key)
+    )
     values["evidence_snapshot_json"] = _to_json(evidence_snapshot)
     return _render_template(template_path, values)
 
@@ -61,8 +99,9 @@ def render_factor_view_system_prompt(
     factor_definitions: Sequence[Mapping[str, Any]],
     metric_definitions: Sequence[Mapping[str, Any]],
     template_path: Path = SYSTEM_PROMPT_PATH,
+    shared_financial_grounding_policy: str | None = None,
 ) -> str:
-    """Render the system-message template with runtime configuration and catalogs."""
+    """Render the system template with runtime inputs and a replaceable policy."""
     values = _runtime_template_values(
         target_horizon,
         q_return_convention,
@@ -71,6 +110,14 @@ def render_factor_view_system_prompt(
         factor_definitions,
         metric_definitions,
     )
+    policy = (
+        SHARED_FINANCIAL_GROUNDING_POLICY_PATH.read_text(encoding="utf-8")
+        if shared_financial_grounding_policy is None
+        else shared_financial_grounding_policy
+    ).strip()
+    if not policy:
+        raise ValueError("shared_financial_grounding_policy must not be blank.")
+    values["shared_financial_grounding_policy"] = policy
     return _render_template(template_path, values)
 
 

@@ -9,6 +9,7 @@ from typing import Any, Mapping, Protocol, Sequence
 from jsonschema import FormatChecker, ValidationError, validate
 
 from app.services.factor_view_prompts import (
+    DEFAULT_PERSONALITY_KEY,
     load_factor_view_output_contract,
     render_factor_view_system_prompt,
     render_factor_view_user_prompt,
@@ -36,11 +37,12 @@ class CompletionClient(Protocol):
 def generate_factor_views(
     evidence_snapshot: Mapping[str, Any],
     *,
+    personality_key: str = DEFAULT_PERSONALITY_KEY,
     model: str = "openai:gpt-4o",
     tools: Sequence[Tool] | None = None,
     llm_client: CompletionClient | None = None,
 ) -> dict[str, Any]:
-    """Generate and validate factor views from a snapshot and workspace fixtures."""
+    """Generate validated factor views using a personality key from the fixtures."""
     defaults = _read_json_object(DEFAULTS_PATH)
     factor_definitions = _read_json_array(FACTOR_DEFINITIONS_PATH)
     metric_definitions = _read_json_array(METRIC_DEFINITIONS_PATH)
@@ -65,6 +67,7 @@ def generate_factor_views(
         factor_definitions=factor_definitions,
         metric_definitions=metric_definitions,
         evidence_snapshot=evidence_snapshot,
+        personality_key=personality_key,
     )
 
     client = llm_client if llm_client is not None else AISuiteLLMClient(model=model)
@@ -165,6 +168,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Path to a snapshot JSON file (defaults to the workspace example).",
     )
     parser.add_argument(
+        "--personality",
+        default=DEFAULT_PERSONALITY_KEY,
+        help=f"Exact key from personalities.json (default: {DEFAULT_PERSONALITY_KEY}).",
+    )
+    parser.add_argument(
         "--model",
         default=os.environ.get("OPENAI_MODEL", "openai:gpt-4o"),
         help="AISuite provider:model identifier.",
@@ -172,7 +180,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     evidence_snapshot = _read_json_object(args.snapshot)
-    response = generate_factor_views(evidence_snapshot, model=args.model)
+    response = generate_factor_views(
+        evidence_snapshot, personality_key=args.personality, model=args.model
+    )
     p_rows = [json.dumps(row, allow_nan=False) for row in response["P"]]
     p_display = "[\n    " + ",\n    ".join(p_rows) + "\n  ]" if p_rows else "[]"
     q_display = json.dumps(response["Q"], allow_nan=False)

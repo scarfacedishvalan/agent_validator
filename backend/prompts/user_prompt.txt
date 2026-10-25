@@ -1,6 +1,11 @@
 Generate factor-level absolute views from the supplied inputs. 
 Follow the system prompt's output contract exactly.
 
+AGENT PERSONALITY:
+
+{agent_personality}
+
+
 TARGET_HORIZON:
 {target_horizon}
 
