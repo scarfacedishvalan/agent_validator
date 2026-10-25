@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import json
+import math
 import os
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
@@ -44,6 +46,8 @@ def generate_factor_views(
 ) -> dict[str, Any]:
     """Generate validated factor views using a personality key from the fixtures."""
     defaults = _read_json_object(DEFAULTS_PATH)
+    defaults["target_horizon"] = defaults["target_horizon"].strip()
+    defaults["q_return_convention"] = defaults["q_return_convention"].strip()
     factor_definitions = _read_json_array(FACTOR_DEFINITIONS_PATH)
     metric_definitions = _read_json_array(METRIC_DEFINITIONS_PATH)
     contract = load_factor_view_output_contract()
@@ -70,22 +74,45 @@ def generate_factor_views(
         personality_key=personality_key,
     )
 
-    client = llm_client if llm_client is not None else AISuiteLLMClient(model=model)
-    response_text = client.complete(
+    return generate_from_messages(
         [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
+        contract=contract,
+        evidence_snapshot=evidence_snapshot,
+        defaults=defaults,
+        factor_definitions=factor_definitions,
+        model=model,
+        llm_client=llm_client,
         tools=tools,
     )
+
+
+def generate_from_messages(
+    messages: Sequence[Message],
+    *,
+    contract: Mapping[str, Any],
+    evidence_snapshot: Mapping[str, Any],
+    defaults: Mapping[str, Any],
+    factor_definitions: Sequence[Mapping[str, Any]],
+    model: str,
+    llm_client: CompletionClient | None = None,
+    tools: Sequence[Tool] | None = None,
+) -> dict[str, Any]:
+    """Execute already-rendered immutable messages without re-reading local files."""
+    client = llm_client if llm_client is not None else AISuiteLLMClient(model=model)
+    response_text = client.complete(messages, tools=tools)
     try:
         response = json.loads(response_text)
     except json.JSONDecodeError as exc:
         raise ValueError("The LLM response was not valid JSON.") from exc
     if not isinstance(response, dict):
         raise ValueError("The LLM response must be a JSON object.")
+    # Reject NaN/Infinity even when a permissive JSON decoder or schema accepts them.
+    json.dumps(response, allow_nan=False)
 
-    _validate_factor_view_response(
+    validate_factor_view_response(
         response,
         contract=contract,
         evidence_snapshot=evidence_snapshot,
@@ -93,10 +120,19 @@ def generate_factor_views(
         q_return_convention=defaults["q_return_convention"],
         factor_definitions=factor_definitions,
     )
+    for assessment in response["factorAssessments"]:
+        if assessment["status"] == "view":
+            q = assessment["q"]
+            if isinstance(q, bool) or not isinstance(q, (int, float)) or not math.isfinite(q):
+                raise ValueError("Active Q values must be finite numbers.")
+            if defaults.get("q_min") is not None and q < defaults["q_min"]:
+                raise ValueError("Active Q is below the configured lower bound.")
+            if defaults.get("q_max") is not None and q > defaults["q_max"]:
+                raise ValueError("Active Q is above the configured upper bound.")
     return response
 
 
-def _validate_factor_view_response(
+def validate_factor_view_response(
     response: dict[str, Any],
     *,
     contract: Mapping[str, Any],
@@ -105,6 +141,41 @@ def _validate_factor_view_response(
     q_return_convention: str,
     factor_definitions: Sequence[Mapping[str, Any]],
 ) -> None:
+    required = ("factorOrder", "asOf", "targetHorizon", "qReturnConvention",
+                "factorAssessments", "activeFactors", "P", "Q")
+    if any(key not in response for key in required):
+        raise ValueError("LLM response is missing required factor-view fields.")
+    if not isinstance(response["asOf"], str):
+        raise ValueError("LLM response asOf must be a date string.")
+    date.fromisoformat(response["asOf"])
+    if any(not isinstance(response[key], str) or not response[key].strip() for key in ("targetHorizon", "qReturnConvention")):
+        raise ValueError("LLM response return context must contain non-blank strings.")
+    if not isinstance(response["factorAssessments"], list):
+        raise ValueError("LLM response factorAssessments must be an array.")
+    for assessment in response["factorAssessments"]:
+        if not isinstance(assessment, dict) or any(
+            key not in assessment for key in ("factor", "status", "q", "confidence", "evidenceRefs", "rationale")
+        ):
+            raise ValueError("Every factor assessment must contain all required assessment fields.")
+        if assessment["status"] not in ("view", "abstain"):
+            raise ValueError("Assessment status must be view or abstain.")
+        if not isinstance(assessment["rationale"], str) or not assessment["rationale"].strip():
+            raise ValueError("Assessment rationale must be non-blank.")
+        refs = assessment["evidenceRefs"]
+        if not isinstance(refs, list) or not all(isinstance(ref, str) and ref.strip() for ref in refs) or len(set(refs)) != len(refs):
+            raise ValueError("Assessment evidenceRefs must be an array of strings.")
+        if assessment["status"] == "abstain":
+            if assessment["q"] is not None or assessment["confidence"] is not None or refs:
+                raise ValueError("Abstentions require null Q/confidence and no evidence references.")
+        else:
+            q = assessment["q"]
+            if isinstance(q, bool) or not isinstance(q, (int, float)) or not math.isfinite(q):
+                raise ValueError("Active Q values must be finite numbers.")
+            confidence = assessment["confidence"]
+            if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
+                raise ValueError("Active confidence must be a number between zero and one.")
+            if not refs or ("values" in evidence_snapshot and any(ref not in evidence_snapshot["values"] for ref in refs)):
+                raise ValueError("Active assessments must reference supplied evidence keys.")
     try:
         validate(instance=response, schema=contract, format_checker=FormatChecker())
     except ValidationError as exc:
@@ -135,9 +206,19 @@ def _validate_factor_view_response(
         [next(item["q"] for item in assessments if item["factor"] == active_factor)]
         for active_factor in active_factors
     ]
-    if response["P"] != expected_p:
+    if (
+        response["P"] != expected_p
+        or any(not isinstance(row, list) or any(type(item) is not int for item in row) for row in response["P"])
+    ):
         raise ValueError("LLM response P must contain one matching one-hot row per active factor.")
-    if response["Q"] != expected_q:
+    if (
+        response["Q"] != expected_q
+        or any(
+            not isinstance(row, list) or len(row) != 1
+            or isinstance(row[0], bool) or not isinstance(row[0], (int, float))
+            for row in response["Q"]
+        )
+    ):
         raise ValueError("LLM response Q must contain the active assessment q values in the same order.")
 
 

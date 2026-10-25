@@ -26,6 +26,9 @@ class AISuiteLLMClientTests(unittest.TestCase):
             )
 
         self.assertEqual(result, '{"ok": true}')
+        fake_aisuite.Client.assert_called_once_with(
+            provider_configs={"openai": {"timeout": 120.0, "max_retries": 0}}
+        )
         sdk_client.chat.completions.create.assert_called_once_with(
             model="openai:gpt-4o",
             messages=[{"role": "user", "content": "Return JSON."}],

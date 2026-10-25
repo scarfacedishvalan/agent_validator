@@ -27,7 +27,7 @@ class WorkbenchApiTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.database_path = Path(self.temp_dir.name) / "workbench.sqlite"
-        self.app = create_app(self.database_path, CATALOG)
+        self.app = create_app(self.database_path, CATALOG, convergence_root=Path(self.temp_dir.name))
         self.client = TestClient(self.app)
         self.client.__enter__()
         response = self.client.post(
@@ -147,6 +147,71 @@ class WorkbenchApiTests(unittest.TestCase):
             json={"snapshotId": self.snapshot["id"], "profileId": "unknown"},
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_list_and_get_snapshots(self):
+        response = self.client.get("/api/v1/evidence/snapshots", params={"limit": 1, "offset": 0})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["total"], 1)
+        self.assertEqual(response.json()["snapshots"], [self.snapshot])
+        fetched = self.client.get(f"/api/v1/evidence/snapshots/{self.snapshot['id']}")
+        self.assertEqual(fetched.status_code, 200, fetched.text)
+        self.assertEqual(fetched.json(), self.snapshot)
+        self.assertEqual(
+            self.client.get("/api/v1/evidence/snapshots", params={"offset": 1}).json()["snapshots"], []
+        )
+        self.assertEqual(
+            self.client.get("/api/v1/evidence/snapshots", params={"limit": 0}).status_code, 422
+        )
+
+    def test_list_get_and_update_profiles(self):
+        self.assertEqual(self.client.get("/api/v1/mutation-profiles").json(), {"profiles": [], "total": 0})
+        created = self.client.post("/api/v1/mutation-profiles", json=self.profile_payload())
+        self.assertEqual(created.status_code, 201, created.text)
+        profile = created.json()
+        path = f"/api/v1/mutation-profiles/{profile['id']}"
+        fetched = self.client.get(path)
+        self.assertEqual(fetched.status_code, 200, fetched.text)
+        self.assertEqual(fetched.json(), profile)
+        listing = self.client.get("/api/v1/mutation-profiles")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json(), {"profiles": [profile], "total": 1})
+        changes = self.profile_payload(["MOM_return_12m"])
+        changes["name"] = "Updated momentum profile"
+        changes["settings"]["explicitValues"] = [-0.02, 0.03]
+        updated = self.client.put(path, json=changes)
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["id"], profile["id"])
+        for key in ("name", "fieldKeys", "combinationMode"):
+            self.assertEqual(updated.json()[key], changes[key])
+        self.assertEqual(updated.json()["settings"]["explicitValues"], [-0.02, 0.03])
+        self.assertEqual(self.client.get(path).json(), updated.json())
+        self.assertEqual(self.client.get("/api/v1/mutation-profiles/unknown").status_code, 404)
+        self.assertEqual(self.client.put("/api/v1/mutation-profiles/unknown", json=changes).status_code, 404)
+        self.assertEqual(self.client.delete("/api/v1/mutation-profiles/unknown").status_code, 404)
+        invalid = {**changes, "fieldKeys": ["unknown"]}
+        self.assertEqual(self.client.put(path, json=invalid).status_code, 422)
+        self.assertEqual(self.client.get(path).json(), updated.json())
+
+    def test_get_variant_and_list_batch_variants(self):
+        generated = self.client.post("/api/v1/variants/generate", json={
+            "snapshotId": self.snapshot["id"],
+            "fieldKeys": ["HML_valuation_zscore"],
+            "settings": self.profile_payload()["settings"],
+            "combinationMode": "one-at-a-time",
+        })
+        self.assertEqual(generated.status_code, 201, generated.text)
+        batch_id = generated.json()["batchId"]
+        response = self.client.get(f"/api/v1/variants/batch/{batch_id}/variants")
+        self.assertEqual(response.status_code, 200, response.text)
+        variants = response.json()
+        self.assertEqual(len(variants), 3)
+        self.assertEqual([variant["values"]["HML_valuation_zscore"] for variant in variants], [0.5, 1.0, 2.0])
+        fetched = self.client.get(f"/api/v1/variants/{variants[0]['id']}")
+        self.assertEqual(fetched.status_code, 200, fetched.text)
+        self.assertEqual(fetched.json(), variants[0])
+        self.assertEqual(self.client.get("/api/v1/variants/unknown").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/variants/batch/unknown/variants").status_code, 404)
+        self.assertEqual(self.client.get("/api/v1/variants", params={"batch_id": "unknown"}).status_code, 404)
 
 
 if __name__ == "__main__":

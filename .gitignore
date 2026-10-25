@@ -11,3 +11,4 @@ __pycache__/
 !.env.example
 backend/data/*.sqlite*
 convergence_results/
+backend/data/convergence_directories.json

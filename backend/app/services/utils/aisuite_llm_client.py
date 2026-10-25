@@ -17,7 +17,7 @@ class AISuiteLLMClient:
 
         import aisuite as ai
 
-        self._client = ai.Client()
+        self._client = ai.Client(provider_configs={"openai": {"timeout": 120.0, "max_retries": 0}})
         self._model = model
 
     def complete(

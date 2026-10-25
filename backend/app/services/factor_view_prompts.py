@@ -69,6 +69,8 @@ def render_factor_view_user_prompt(
     evidence_snapshot: Mapping[str, Any],
     template_path: Path = USER_PROMPT_PATH,
     personality_key: str = DEFAULT_PERSONALITY_KEY,
+    template_text: str | None = None,
+    personality_instructions: str | None = None,
 ) -> str:
     if not target_horizon.strip():
         raise ValueError("target_horizon must not be blank.")
@@ -84,10 +86,13 @@ def render_factor_view_user_prompt(
         metric_definitions,
     )
     values["agent_personality"] = (
-        personality_key + "\n" + load_agent_personality(personality_key)
+        personality_key + "\n" + (
+            load_agent_personality(personality_key)
+            if personality_instructions is None else personality_instructions
+        )
     )
     values["evidence_snapshot_json"] = _to_json(evidence_snapshot)
-    return _render_template(template_path, values)
+    return render_template_text(template_text, values) if template_text is not None else _render_template(template_path, values)
 
 
 def render_factor_view_system_prompt(
@@ -100,6 +105,7 @@ def render_factor_view_system_prompt(
     metric_definitions: Sequence[Mapping[str, Any]],
     template_path: Path = SYSTEM_PROMPT_PATH,
     shared_financial_grounding_policy: str | None = None,
+    template_text: str | None = None,
 ) -> str:
     """Render the system template with runtime inputs and a replaceable policy."""
     values = _runtime_template_values(
@@ -118,7 +124,7 @@ def render_factor_view_system_prompt(
     if not policy:
         raise ValueError("shared_financial_grounding_policy must not be blank.")
     values["shared_financial_grounding_policy"] = policy
-    return _render_template(template_path, values)
+    return render_template_text(template_text, values) if template_text is not None else _render_template(template_path, values)
 
 
 def _runtime_template_values(
@@ -144,11 +150,14 @@ def _runtime_template_values(
 
 
 def _render_template(template_path: Path, values: Mapping[str, str]) -> str:
-    template = template_path.read_text(encoding="utf-8")
+    return render_template_text(template_path.read_text(encoding="utf-8"), values)
+
+
+def render_template_text(template: str, values: Mapping[str, str]) -> str:
     try:
         return template.format_map(values).strip()
-    except KeyError as exc:
-        raise ValueError(f"Prompt template has an unknown placeholder: {exc.args[0]}") from exc
+    except (KeyError, IndexError, AttributeError, ValueError) as exc:
+        raise ValueError(f"Prompt template could not be rendered: {exc}") from exc
 
 
 def _format_bound(value: float | None) -> str:

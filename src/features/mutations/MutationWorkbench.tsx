@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  Activity,
   ArrowDownToLine,
   ArrowRight,
   Check,
   ChevronDown,
   CircleHelp,
-  Command,
   Database,
   Dices,
   FlaskConical,
@@ -19,6 +17,7 @@ import {
   TableProperties,
 } from 'lucide-react';
 import { sampleSnapshot } from '../evidence/evidence';
+import { WorkspaceSidebar } from '../../shared/components/WorkspaceSidebar';
 import type { EvidenceSnapshot, MetricDefinition } from '../evidence/evidence';
 import { metricDefinitions } from '../evidence/metricDefinitions';
 import { createEvidenceSnapshot, listEvidenceSnapshots, listMetricDefinitions } from '../evidence/services/evidenceApi';
@@ -279,32 +278,7 @@ export function MutationWorkbench() {
 
   return (
     <div className="workbench-shell">
-      <aside className="sidebar">
-        <div className="brand-lockup">
-          <div className="brand-mark"><Activity size={18} strokeWidth={2.4} /></div>
-          <div className="brand-copy"><strong>signal foundry</strong><span>RESEARCH WORKBENCH</span></div>
-        </div>
-
-        <div className="workspace-switcher">
-          <div className="workspace-avatar">Q</div>
-          <div className="workspace-copy"><span>Workspace</span><strong>Quant research</strong></div>
-          <ChevronDown size={15} />
-        </div>
-
-        <div className="nav-label">WORKSPACE</div>
-        <nav className="primary-nav" aria-label="Workspace">
-          <a className="nav-item" href="#evidence"><Database size={17} /><span>Evidence</span></a>
-          <a className="nav-item active" href="#mutation-builder" aria-current="page"><SlidersHorizontal size={17} /><span>Mutation builder</span><span className="nav-indicator" /></a>
-          <a className="nav-item" href="#profiles"><Layers3 size={17} /><span>Profiles</span><span className="nav-count">{profiles.length.toString().padStart(2, '0')}</span></a>
-          <a className="nav-item disabled" href="#experiments" aria-disabled="true"><FlaskConical size={17} /><span>Experiments</span><span className="nav-soon">SOON</span></a>
-        </nav>
-
-        <div className="sidebar-bottom">
-          <div className="local-status"><span className={`status-dot${apiStatus === 'offline' ? ' offline' : ''}`} /><span>{apiStatus === 'connected' ? 'Local API connected' : apiStatus === 'connecting' ? 'Connecting' : 'Sample mode'}</span><span className="local-lock">{apiStatus === 'connected' ? 'ONLINE' : 'LOCAL'}</span></div>
-          <button className="help-link" type="button"><CircleHelp size={16} /><span>Workbench guide</span><ArrowRight size={14} /></button>
-          <div className="user-row"><div className="user-avatar">AS</div><div><strong>Analyst</strong><span>Personal workspace</span></div><Command size={15} /></div>
-        </div>
-      </aside>
+      <WorkspaceSidebar active="mutations" apiStatus={apiStatus} profileCount={profiles.length} />
 
       <main className="main-content" id="mutation-builder">
         <header className="topbar">
