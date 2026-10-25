@@ -28,9 +28,9 @@ class MockLLMClient:
         return mean_absolute_value + noise
 
     def complete(self, prompt: str) -> dict[str, Any]:
-        """Build the contract response with one independently sampled q per factor."""
+        """Build the contract response with one independently sampled q per active example factor."""
         response = deepcopy(load_factor_view_output_contract()["example"])
-        assessments = response["factorAssessments"]
+        assessments = [item for item in response["factorAssessments"] if item["status"] == "view"]
         q_values = [self.extract_value(prompt) for _ in assessments]
 
         for assessment, q_value in zip(assessments, q_values):

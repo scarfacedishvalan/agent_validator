@@ -61,8 +61,8 @@ class FactorViewOrchestratorTests(unittest.TestCase):
         )
         self.assertEqual(
             output.getvalue(),
-            '{\n  "P": [\n    [1, 0, 0],\n    [0, 1, 0],\n    [0, 0, 1]\n  ],\n'
-            '  "Q": [[0.04], [0.02], [0.03]]\n}\n',
+            '{\n  "P": [\n    [1, 0, 0],\n    [0, 0, 1]\n  ],\n'
+            '  "Q": [[0.04], [0.03]]\n}\n',
         )
 
     def test_cli_displays_empty_matrices(self):

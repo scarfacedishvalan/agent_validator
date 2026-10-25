@@ -32,18 +32,18 @@ class MockLLMClientTests(unittest.TestCase):
         result = client.extract_value(PROMPT)
         self.assertLess(abs(result - 0.7 / 3), 0.05)
 
-    def test_complete_uses_contract_fixture_and_three_extracted_values(self):
+    def test_complete_uses_contract_fixture_and_extracted_values_for_active_factors(self):
         client = MockLLMClient(noise_std=0)
         contract_example = load_factor_view_output_contract()["example"]
-        with patch.object(client, "extract_value", side_effect=[0.1, 0.2, 0.3]) as extract:
+        with patch.object(client, "extract_value", side_effect=[0.1, 0.2]) as extract:
             result = client.complete(PROMPT)
 
-        self.assertEqual(extract.call_count, 3)
+        self.assertEqual(extract.call_count, 2)
         self.assertEqual(result["factorOrder"], contract_example["factorOrder"])
         self.assertEqual(result["P"], contract_example["P"])
         self.assertEqual(result["activeFactors"], contract_example["activeFactors"])
-        self.assertEqual([item["q"] for item in result["factorAssessments"]], [0.1, 0.2, 0.3])
-        self.assertEqual(result["Q"], [[0.1], [0.2], [0.3]])
+        self.assertEqual([item["q"] for item in result["factorAssessments"]], [0.1, None, 0.2])
+        self.assertEqual(result["Q"], [[0.1], [0.2]])
 
     def test_rejects_negative_noise(self):
         with self.assertRaises(ValueError):

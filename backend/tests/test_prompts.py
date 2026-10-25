@@ -116,8 +116,14 @@ class FactorViewPromptTests(unittest.TestCase):
         contract = load_factor_view_output_contract()
         example = contract["example"]
         self.assertEqual(example["factorOrder"], ["HML", "RMW", "MOM"])
-        self.assertEqual(len(example["P"]), 3)
-        self.assertEqual(len(example["Q"]), 3)
+        self.assertEqual(len(example["factorAssessments"]), 3)
+        self.assertEqual(example["factorAssessments"][1]["status"], "abstain")
+        self.assertEqual(len(example["P"]), 2)
+        self.assertEqual(len(example["Q"]), 2)
+        for assessment in example["factorAssessments"]:
+            keys = list(assessment)
+            self.assertLess(keys.index("rationale"), keys.index("status"))
+            self.assertLess(keys.index("status"), keys.index("evidenceRefs"))
         self.assertEqual(contract["properties"]["Q"]["type"], "array")
 
     def test_renders_context_for_client_without_unresolved_placeholders(self):

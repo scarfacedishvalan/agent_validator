@@ -58,4 +58,4 @@ Every active q must use exactly the configured horizon and return convention. Em
 
 OUTPUT CONTRACT
 
-Return one JSON object and nothing else, conforming to the JSON Schema in backend/fixtures/factor_view_output_contract.json. Do not include Markdown or additional keys. Return exactly one assessment for every factor, in catalog order. P columns follow factorOrder. Q has one single-value row for each active factor, in active-factor order. The fixture's example shows a complete three-factor response.
+Return one JSON object and nothing else, conforming to the JSON Schema in backend/fixtures/factor_view_output_contract.json. Do not include Markdown or additional keys. Return exactly one assessment for every factor, in catalog order. P columns follow factorOrder. Q has one single-value row for each active factor, in active-factor order. The fixture's example shows a complete three-factor response, including one abstention.

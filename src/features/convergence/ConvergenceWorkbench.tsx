@@ -89,6 +89,9 @@ export function ConvergenceWorkbench() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const runObject = isObject(run) ? run : null;
+  const modelOptions = runObject && Array.isArray(runObject.models)
+    ? runObject.models.filter((model): model is string => typeof model === 'string')
+    : [];
   const validationErrors = [...resolved.errors, ...(sync.previewError ? [sync.previewError] : [])];
   const previewReady = validationErrors.length === 0 && !!sync.preview && !sync.previewPending && sync.connected;
   const activeRun = sync.listing.runs.find((run) => isRunning(run.status));
@@ -194,8 +197,17 @@ export function ConvergenceWorkbench() {
                       <JsonFields value={runObject.name ?? ''} label="Experiment name" path="run.name" onChange={(name) => updateDocument('run', { ...runObject, name })} />
                       <div className="config-two-columns">
                         <JsonFields value={runObject.iterations ?? 10} label="Number of calls" path="run.iterations" onChange={(iterations) => updateDocument('run', { ...runObject, iterations })} />
-                        <JsonFields value={runObject.model ?? ''} label="Provider:model" path="run.model" onChange={(model) => updateDocument('run', { ...runObject, model })} />
+                        <div className="config-field">
+                          <label htmlFor="run-model">Selected model</label>
+                          <select id="run-model" value={String(runObject.model ?? '')} onChange={(event) => updateDocument('run', { ...runObject, model: event.target.value })}>
+                            {!modelOptions.includes(String(runObject.model ?? '')) && <option value={String(runObject.model ?? '')} disabled>{String(runObject.model ?? 'Select a model')} (not in models)</option>}
+                            {[...new Set(modelOptions)].map((model) => <option key={model} value={model}>{model.replace(/^openai:/, '')}{model === 'openai:gpt-4o' ? ' (legacy, non-reasoning)' : ''}</option>)}
+                          </select>
+                        </div>
                       </div>
+                      <details className="run-details"><summary>Available models ({modelOptions.length})</summary><p>Edit the list here or in JSON. Changes sync to the models field in the local run-settings file. Keep the selected model in the list.</p><JsonFields value={runObject.models ?? []} label="Model identifier" path="run.models" onChange={(models) => updateDocument('run', { ...runObject, models })} /></details>
+                      <JsonFields value={runObject.temperature ?? null} label="Temperature (optional)" path="run.temperature" onChange={(temperature) => updateDocument('run', { ...runObject, temperature })} />
+                      <p className="results-footnote">Reasoning models may reject a custom temperature. Clear this field to omit it and use the provider default. Model access depends on your OpenAI account.</p>
                       <div className="config-field"><label htmlFor="run-personality">Analyst personality</label><select id="run-personality" value={String(runObject.personality ?? '')} onChange={(event) => updateDocument('run', { ...runObject, personality: event.target.value })}>{!personalityNames.includes(String(runObject.personality)) && <option value={String(runObject.personality ?? '')}>Select an available personality</option>}{personalityNames.map((name) => <option key={name}>{name}</option>)}</select><button type="button" className="text-button personality-edit-link" onClick={() => { setEditingPersonality(String(runObject.personality)); chooseDocument('personalities'); }}>View and edit instructions <ArrowRight size={12} /></button></div>
                       <JsonFields value={runObject.outputDirectory ?? ''} label="Results directory (project-relative)" path="run.outputDirectory" onChange={(outputDirectory) => updateDocument('run', { ...runObject, outputDirectory })} />
                       <div className="run-protocol"><ShieldCheck size={20} /><div><strong>A controlled batch, by design</strong><p>Sequential calls. Fixed inputs. No reused responses, silent retries or automatic pass/fail threshold.</p></div></div>

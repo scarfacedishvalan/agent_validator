@@ -97,8 +97,10 @@ def validate_document(document_id: str, content: str, root: Path = PROJECT_ROOT)
         "run": object_schema({
             "name": STRING, "iterations": {"type": "integer", "minimum": 1},
             "personality": STRING, "model": {**STRING, "pattern": r"^[^:\s]+:[^\s]+$"},
-            "outputDirectory": STRING,
-        }, ["name", "iterations", "personality", "model", "outputDirectory"]),
+            "models": {"type": "array", "minItems": 1, "uniqueItems": True,
+                       "items": {**STRING, "pattern": r"^openai:[^\s:]+$"}},
+            "outputDirectory": STRING, "temperature": {"type": ["number", "null"], "minimum": 0, "maximum": 2},
+        }, ["name", "iterations", "personality", "model", "models", "outputDirectory"]),
         "evidence": object_schema({
             "name": STRING, "asOf": {"type": "string", "format": "date"},
             "values": {"type": "object", "additionalProperties": NUMBER},
@@ -129,6 +131,8 @@ def validate_document(document_id: str, content: str, root: Path = PROJECT_ROOT)
         raise ValueError(f"{'/'.join(map(str, exc.absolute_path)) or document_id}: {exc.message}") from exc
     if document_id == "run":
         result_directory(root, value["outputDirectory"])
+        if value["model"] not in value["models"]:
+            raise ValueError("Selected model must be included in models.")
     if document_id == "defaults":
         if value["q_min"] is not None and value["q_max"] is not None and value["q_min"] > value["q_max"]:
             raise ValueError("Q minimum must not exceed maximum.")

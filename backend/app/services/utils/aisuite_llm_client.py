@@ -11,7 +11,7 @@ Tool = Mapping[str, Any]
 class AISuiteLLMClient:
     """Small AISuite chat client configured for OpenAI JSON responses."""
 
-    def __init__(self, model: str = "openai:gpt-4o") -> None:
+    def __init__(self, model: str = "openai:gpt-4o", temperature: float | None = None) -> None:
         if not os.environ.get("OPENAI_API_KEY", "").strip():
             raise RuntimeError("Set the OPENAI_API_KEY environment variable before calling the LLM.")
 
@@ -19,6 +19,7 @@ class AISuiteLLMClient:
 
         self._client = ai.Client(provider_configs={"openai": {"timeout": 120.0, "max_retries": 0}})
         self._model = model
+        self._temperature = temperature
 
     def complete(
         self,
@@ -31,10 +32,13 @@ class AISuiteLLMClient:
         `tools` is reserved for a future tool-calling implementation and is not sent.
         """
         del tools
+        # Omit temperature when unset so the provider default applies.
+        options = {} if self._temperature is None else {"temperature": self._temperature}
         response = self._client.chat.completions.create(
             model=self._model,
             messages=list(messages),
             response_format={"type": "json_object"},
+            **options,
         )
         choices = getattr(response, "choices", None)
         if not choices:

@@ -56,6 +56,11 @@ export function parseDocument(doc: ConfigDocument, source: string): { value: Jso
       const object = value;
       if (doc.id === 'personalities' && (!Object.keys(object).length || Object.entries(object).some(([key, instructions]) => !key.trim() || !Array.isArray(instructions) || !instructions.length || instructions.some((line) => typeof line !== 'string' || !line.trim())))) throw new Error('Each personality needs a name and a non-empty array of instructions.');
       if (doc.id === 'run' && (typeof object.iterations !== 'number' || !Number.isSafeInteger(object.iterations) || object.iterations < 1 || ['name', 'model', 'personality', 'outputDirectory'].some((key) => typeof object[key] !== 'string' || !String(object[key]).trim()))) throw new Error('Use a positive integer iteration count and non-blank run fields.');
+      if (doc.id === 'run') {
+        if (!Array.isArray(object.models) || !object.models.length || object.models.some((model) => typeof model !== 'string' || !/^openai:[^\s:]+$/.test(model)) || new Set(object.models).size !== object.models.length) throw new Error('Models must be a non-empty list of unique openai:model identifiers.');
+        if (!object.models.includes(object.model)) throw new Error('Selected model must be included in models.');
+        if (object.temperature !== undefined && object.temperature !== null && (typeof object.temperature !== 'number' || object.temperature < 0 || object.temperature > 2)) throw new Error('Temperature must be between 0 and 2, or null for the provider default.');
+      }
       if (doc.id === 'evidence' && (typeof object.name !== 'string' || typeof object.asOf !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(object.asOf) || !isObject(object.values) || Object.values(object.values).some((item) => typeof item !== 'number'))) throw new Error('Evidence needs name, asOf (YYYY-MM-DD) and numeric values.');
       if (doc.id === 'defaults') {
         if (['target_horizon', 'q_return_convention'].some((key) => typeof object[key] !== 'string' || !String(object[key]).trim())) throw new Error('Horizon and return convention are required.');

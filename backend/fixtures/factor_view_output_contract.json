@@ -32,27 +32,27 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["factor", "status", "q", "confidence", "evidenceRefs", "rationale"],
+            "required": ["factor", "rationale", "status", "q", "confidence", "evidenceRefs"],
             "properties": {
               "factor": { "type": "string", "minLength": 1 },
+              "rationale": { "type": "string", "minLength": 1 },
               "status": { "const": "view" },
               "q": { "type": "number" },
               "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-              "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
-              "rationale": { "type": "string", "minLength": 1 }
+              "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
             }
           },
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["factor", "status", "q", "confidence", "evidenceRefs", "rationale"],
+            "required": ["factor", "rationale", "status", "q", "confidence", "evidenceRefs"],
             "properties": {
               "factor": { "type": "string", "minLength": 1 },
+              "rationale": { "type": "string", "minLength": 1 },
               "status": { "const": "abstain" },
               "q": { "type": "null" },
               "confidence": { "type": "null" },
-              "evidenceRefs": { "type": "array", "maxItems": 0 },
-              "rationale": { "type": "string", "minLength": 1 }
+              "evidenceRefs": { "type": "array", "maxItems": 0 }
             }
           }
         ]
@@ -89,31 +89,31 @@
     "factorAssessments": [
       {
         "factor": "HML",
+        "rationale": "Illustrative assessment based on the supplied HML evidence.",
         "status": "view",
         "q": 0.04,
         "confidence": 0.6,
-        "evidenceRefs": ["HML_return_12m"],
-        "rationale": "Illustrative assessment based on the supplied HML evidence."
+        "evidenceRefs": ["HML_return_12m"]
       },
       {
         "factor": "RMW",
-        "status": "view",
-        "q": 0.02,
-        "confidence": 0.55,
-        "evidenceRefs": ["RMW_return_12m"],
-        "rationale": "Illustrative assessment based on the supplied RMW evidence."
+        "rationale": "Illustrative abstention: the supplied RMW evidence does not support a defensible estimate.",
+        "status": "abstain",
+        "q": null,
+        "confidence": null,
+        "evidenceRefs": []
       },
       {
         "factor": "MOM",
+        "rationale": "Illustrative assessment based on the supplied momentum evidence.",
         "status": "view",
         "q": 0.03,
         "confidence": 0.5,
-        "evidenceRefs": ["MOM_return_12m"],
-        "rationale": "Illustrative assessment based on the supplied momentum evidence."
+        "evidenceRefs": ["MOM_return_12m"]
       }
     ],
-    "activeFactors": ["HML", "RMW", "MOM"],
-    "P": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-    "Q": [[0.04], [0.02], [0.03]]
+    "activeFactors": ["HML", "MOM"],
+    "P": [[1, 0, 0], [0, 0, 1]],
+    "Q": [[0.04], [0.03]]
   }
 }

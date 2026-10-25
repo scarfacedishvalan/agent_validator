@@ -1,7 +1,14 @@
 {
-  "name": "Factor-view repeatability-2",
+  "name": "Factor-view repeatability-3",
   "iterations": 10,
   "personality": "Contrarian Mean-Reversion Analyst",
   "model": "openai:gpt-4o",
+  "models": [
+    "openai:gpt-6-astra",
+    "openai:gpt-5.6-terra",
+    "openai:gpt-5.6-luna",
+    "openai:gpt-4o"
+  ],
+  "temperature": 0.2,
   "outputDirectory": "convergence_results"
 }

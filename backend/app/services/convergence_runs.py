@@ -256,7 +256,7 @@ class ConvergenceRuns:
             config = frozen["configuration"]
             run = config["run"]
             # Client construction validates credentials before creating a running batch; no API call.
-            client = self.client_factory(model=run["model"])
+            client = self.client_factory(model=run["model"], temperature=run.get("temperature"))
             directory = result_directory(self.store.root, run["outputDirectory"])
             directory.mkdir(parents=True, exist_ok=True)
             self.register_directory(directory)

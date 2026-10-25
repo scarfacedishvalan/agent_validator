@@ -53,7 +53,10 @@ class ConvergenceTests(unittest.TestCase):
         self.assertIn("OUTPUT_JSON_SCHEMA:", preview["messages"][0]["content"])
         self.assertIn("SHARED FINANCIAL GROUNDING POLICY", preview["messages"][0]["content"])
         self.assertIn('"HML_return_1m": -0.032', preview["messages"][1]["content"])
-        self.assertIn("Adaptive Short-Term Adjustment", preview["messages"][1]["content"])
+        selected_personality = preview["configuration"]["run"]["personality"]
+        self.assertIn(selected_personality, preview["messages"][1]["content"])
+        for instruction in preview["configuration"]["personalities"][selected_personality]:
+            self.assertIn(instruction.strip(), preview["messages"][1]["content"])
         self.manager.client_factory.assert_not_called()
 
     def test_compare_and_swap_preserves_external_edits(self):
@@ -112,6 +115,50 @@ class ConvergenceTests(unittest.TestCase):
         contents["factors"] = json.dumps(catalog)
         with self.assertRaisesRegex(ValueError, "unknown metrics"):
             resolve_configuration(contents, self.root)
+
+    def test_model_choices_and_selection_sync_through_document_api_and_execution(self):
+        app = create_app(self.root / "test.sqlite", convergence_root=self.root)
+        app.state.convergence_runs = self.manager
+        self.manager.generate = Mock(return_value=deepcopy(self.example))
+        with TestClient(app) as client:
+            route = "/api/v1/convergence/config/documents/run"
+            document = client.get("/api/v1/convergence/config/documents").json()["documents"]["run"]
+            settings = strict_json(document["content"])
+            settings.update(models=["openai:gpt-6-astra", "openai:gpt-5.6-terra"],
+                            model="openai:gpt-5.6-terra", temperature=None, iterations=1)
+            saved = client.put(route, json={"content": json.dumps(settings), "revision": document["revision"]})
+            self.assertEqual(saved.status_code, 200, saved.text)
+            reloaded = client.get("/api/v1/convergence/config/documents").json()["documents"]["run"]
+            self.assertEqual(strict_json(reloaded["content"]), settings)
+            self.assertEqual(strict_json(self.store.path("run").read_text()), settings)
+            # An external edit is visible through the same read path without restarting.
+            settings["model"] = "openai:gpt-6-astra"
+            self.store.path("run").write_text(json.dumps(settings), encoding="utf-8")
+            external = client.get("/api/v1/convergence/config/documents").json()["documents"]["run"]
+            self.assertNotEqual(external["revision"], saved.json()["revision"])
+            self.assertEqual(strict_json(external["content"])["model"], "openai:gpt-6-astra")
+            created = client.post("/api/v1/convergence/runs",
+                                  json={"confirmLiveCalls": True, "revisions": self.revisions()})
+            self.assertEqual(created.status_code, 201, created.text)
+            self.join()
+            self.manager.client_factory.assert_called_once_with(model="openai:gpt-6-astra", temperature=None)
+            detail = self.manager.get(created.json()["id"])
+            self.assertEqual(detail["model"], settings["model"])
+            self.assertEqual(detail["frozen"]["configuration"]["run"]["models"], settings["models"])
+
+    def test_model_list_validation_rejects_invalid_choices_and_preserves_file(self):
+        document = self.store.document("run")
+        settings = strict_json(document["content"])
+        for changes in (
+            {"models": []},
+            {"models": ["openai:gpt-6-astra", "openai:gpt-6-astra"]},
+            {"models": ["gpt-6-astra"]},
+            {"models": [False]},
+            {"models": ["openai:gpt-6-astra"], "model": "openai:missing"},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                self.store.save("run", json.dumps({**settings, **changes}), document["revision"])
+            self.assertEqual(self.store.document("run")["revision"], document["revision"])
 
     def test_complete_run_has_frozen_messages_and_atomic_checkpoints(self):
         self.set_run(iterations=2)

@@ -25,6 +25,17 @@ are collected by the frontend. Export setup downloads the draft document strings
 Reset document restores the build-time bundled baseline and autosaves it to its
 local source file after validation.
 
+Run settings store `models` (the editable dropdown choices, as `openai:model`
+identifiers) and `model` (the selected choice used by execution). Both use the
+same file-sync path; selecting a model never creates a separate UI-only value.
+The selection must remain in the list. The initial reasoning choices are GPT-6
+Astra, GPT-5.6 Terra and GPT-5.6 Luna, as listed in OpenAI's
+[reasoning guide](https://developers.openai.com/api/docs/guides/reasoning).
+The existing GPT-4o selection is preserved and labelled non-reasoning. This list
+is configurable, not an account-specific availability check. For reasoning
+models that reject custom temperature, clear Temperature to save `null` and omit
+the parameter from the provider request.
+
 ## Runs
 
 One backend-owned batch runs at a time. Inputs and exact rendered messages are

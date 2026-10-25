@@ -48,6 +48,13 @@ AISuite adapter uses OpenAI JSON mode; use `openai:<model>` identifiers with a
 model that supports JSON mode. OpenAI SDK retries are disabled and each request
 has a 120-second timeout. No LLM request is made by loading, editing or previewing
 configuration; starting a batch requires explicit confirmation of billable calls.
+The optional run setting `temperature` (0–2) is sent with every call in the batch
+and recorded in the run's frozen configuration; omit it to use the provider
+default, for example with models that reject a temperature parameter.
+
+The output contract orders each assessment's fields as `factor`, `rationale`,
+`status`, `q`, `confidence`, `evidenceRefs`, so the model writes its reasoning
+before committing to a decision. Its example includes one abstention.
 
 ### Editable source files
 
