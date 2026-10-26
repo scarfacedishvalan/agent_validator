@@ -76,6 +76,9 @@ class FactorViewPromptTests(unittest.TestCase):
         self.assertIn("RUNTIME CONFIGURATION\n\nTARGET_HORIZON:\n12 months", prompt)
         self.assertIn('"key": "HML"', prompt)
         self.assertIn('"HML_return_12m"', prompt)
+        self.assertIn("subjective conditional arithmetic expectation (mean)", prompt)
+        self.assertIn("not a relative view comparing one factor with another", prompt)
+        self.assertIn("not automatically a Black-Litterman-ready excess-return view", prompt)
         self.assertNotIn("{target_horizon}", prompt)
         self.assertNotIn("{factor_definitions_json}", prompt)
         self.assertNotIn("{shared_financial_grounding_policy}", prompt)
@@ -128,6 +131,7 @@ class FactorViewPromptTests(unittest.TestCase):
             self.assertLess(keys.index("status"), keys.index("evidenceRefs"))
         self.assertEqual(contract["properties"]["Q"]["type"], "array")
         self.assertEqual(example["qReturnConvention"], defaults["q_return_convention"])
+        self.assertIn("arithmetic expectation (mean)", contract["description"])
 
     def test_renders_context_for_client_without_unresolved_placeholders(self):
         prompt = render_factor_view_user_prompt(
@@ -140,6 +144,8 @@ class FactorViewPromptTests(unittest.TestCase):
             evidence_snapshot={"asOf": "2026-10-01", "values": {"HML_return_12m": 0.04}},
         )
         self.assertIn("TARGET_HORIZON:\n12 months", prompt)
+        self.assertIn("subjective conditional arithmetic expectation (mean)", prompt)
+        self.assertIn("not automatically a Black-Litterman-ready", prompt)
         self.assertIn('"key": "HML"', prompt)
         self.assertIn('"HML_return_12m": 0.04', prompt)
         self.assertIn("Q_MIN", prompt)

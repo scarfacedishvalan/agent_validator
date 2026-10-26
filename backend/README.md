@@ -51,9 +51,13 @@ Render client-ready messages with `app.services.factor_view_prompts.render_facto
 
 Default prompt runtime values are in `backend/fixtures/factor_view_defaults.json` (`target_horizon`, `q_return_convention`, `q_min`, and `q_max`). An orchestrator can load this single JSON file and override any values before calling the prompt renderers. `null` bounds mean no configured lower or upper bound.
 
-The bundled convergence experiment defines q as the expected cumulative return
-over the next 12 months on the same defined factor spread, expressed as a decimal,
-unannualized and before benchmark adjustment. The bundled 1-, 3-, and 12-month
+The bundled convergence experiment defines q as the subjective conditional
+arithmetic mean of the next 12-month cumulative return on the same defined factor
+spread, expressed as a decimal, unannualized and before benchmark adjustment. It is
+not a median or most-likely scenario. Here, "absolute" means
+a standalone factor-level view, not a relative comparison or a total-versus-excess
+return definition. This output is not automatically a Black-Litterman-ready input.
+The bundled 1-, 3-, and 12-month
 evidence values are synthetic trailing cumulative returns of those spreads.
 Lookback windows overlap and are not independent observations. Historical values
 are evidence, not forecasts; prompts distinguish forward q from trailing returns.

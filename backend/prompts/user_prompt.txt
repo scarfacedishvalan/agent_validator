@@ -1,4 +1,4 @@
-Generate factor-level absolute views from the supplied inputs. 
+Generate factor-level views from the supplied inputs. "Absolute" means each view applies to one defined factor portfolio/spread independently; it does not specify a total-versus-excess return basis.
 Follow the system prompt's output contract exactly.
 
 AGENT PERSONALITY:
@@ -39,3 +39,10 @@ not forecasts; do not copy, annualize, or convert them unless the selected
 personality explicitly defines a mechanical proxy, which must be labeled a
 heuristic. The trailing lookback windows overlap and are not independent
 confirmations.
+
+Treat q as your subjective conditional arithmetic expectation (mean) of the
+configured return quantity over the configured forward horizon, given the supplied
+evidence—not its median or most likely single scenario. This is a point estimate,
+not a calibrated distribution; do not invent or report scenario probabilities.
+The configured bundled return basis is not automatically a Black-Litterman-ready
+excess-return basis; any required conversion is outside this forecast.

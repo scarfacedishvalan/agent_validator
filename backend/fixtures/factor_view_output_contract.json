@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Absolute factor-view response",
-  "description": "Structured response containing exactly one assessment for each factor in the supplied catalog. P columns follow factorOrder; Q is the corresponding column vector for active absolute views.",
+  "title": "Factor-level forecast response",
+  "description": "Structured response containing exactly one assessment for each factor in the supplied catalog. Absolute means standalone factor-level views, not relative comparisons and not a total-versus-excess return basis. Each q is a subjective conditional arithmetic expectation (mean) of the configured return quantity over the target horizon, not the median or most likely scenario. P columns follow factorOrder; Q is the corresponding column vector for active views.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -37,7 +37,10 @@
               "factor": { "type": "string", "minLength": 1 },
               "rationale": { "type": "string", "minLength": 1 },
               "status": { "const": "view" },
-              "q": { "type": "number" },
+              "q": {
+                "type": "number",
+                "description": "Subjective conditional arithmetic expected value (mean) of the configured return quantity over the target horizon, given the supplied evidence; not a median or most-likely scenario."
+              },
               "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
               "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
             }
@@ -89,7 +92,7 @@
     "factorAssessments": [
       {
         "factor": "HML",
-        "rationale": "Illustrative judgmental forecast of the next 12-month cumulative HML spread return, based on supplied evidence and not copied from the historical 12-month return.",
+        "rationale": "Illustrative judgmental estimate of the conditional mean of the next 12-month cumulative HML spread return, based on supplied evidence and not copied from the historical 12-month return.",
         "status": "view",
         "q": 0.04,
         "confidence": 0.6,
@@ -105,7 +108,7 @@
       },
       {
         "factor": "MOM",
-        "rationale": "Illustrative judgmental forecast of the next 12-month cumulative MOM spread return, based on supplied evidence and not copied from the historical 12-month return.",
+        "rationale": "Illustrative judgmental estimate of the conditional mean of the next 12-month cumulative MOM spread return, based on supplied evidence and not copied from the historical 12-month return.",
         "status": "view",
         "q": 0.03,
         "confidence": 0.5,
