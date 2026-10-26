@@ -1,4 +1,5 @@
 import evidence from '../../../backend/fixtures/evidence_snapshot_example.json';
+import evidenceExamples from '../../../backend/fixtures/evidence_examples.json';
 import personalities from '../../../backend/fixtures/personalities.json';
 import defaults from '../../../backend/fixtures/factor_view_defaults.json';
 import factors from '../../../backend/fixtures/factor_definitions.json';
@@ -8,10 +9,11 @@ import system from '../../../backend/prompts/system_prompt.txt?raw';
 import user from '../../../backend/prompts/user_prompt.txt?raw';
 import policy from '../../../backend/prompts/shared_financial_grounding_policy.txt?raw';
 import runSettings from '../../../backend/fixtures/convergence_run_settings.json';
+import pricing from '../../../backend/fixtures/model_pricing.json';
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
-export type DocumentId = 'run' | 'evidence' | 'personalities' | 'defaults' | 'factors' | 'metrics' | 'system' | 'user' | 'policy' | 'contract';
+export type DocumentId = 'run' | 'pricing' | 'evidence' | 'examples' | 'personalities' | 'defaults' | 'factors' | 'metrics' | 'system' | 'user' | 'policy' | 'contract';
 export interface ConfigDocument {
   id: DocumentId;
   label: string;
@@ -23,7 +25,9 @@ export interface ConfigDocument {
 const json = (value: unknown) => JSON.stringify(value, null, 2);
 export const documents: ConfigDocument[] = [
   { id: 'run', label: 'Run settings', description: 'Define the repeated-call experiment. Each batch holds its inputs fixed.', path: 'backend/fixtures/convergence_run_settings.json', format: 'json', initial: json(runSettings) },
+  { id: 'pricing', label: 'Model pricing', description: 'Editable standard USD rates per million tokens. Rates are frozen for new runs; missing or unsupported pricing is shown as unavailable, not zero.', path: 'backend/fixtures/model_pricing.json', format: 'json', initial: json(pricing) },
   { id: 'evidence', label: 'Evidence snapshot', description: 'The same dated observations are supplied to every call. Returns are stored as decimals.', path: 'backend/fixtures/evidence_snapshot_example.json', format: 'json', initial: json(evidence) },
+  { id: 'examples', label: 'Evidence examples', description: 'Editable synthetic test scenarios, not historical market data or expected answers. Load a copy from the Evidence snapshot editor. Missing observations are omitted, not zero.', path: 'backend/fixtures/evidence_examples.json', format: 'json', initial: json(evidenceExamples) },
   { id: 'personalities', label: 'Personalities', description: 'Select a personality to edit its ordered instructions. Shared policy always takes precedence.', path: 'backend/fixtures/personalities.json', format: 'json', initial: json(personalities) },
   { id: 'defaults', label: 'Runtime defaults', description: 'Forecast horizon, return convention and optional decimal Q bounds. Null means unbounded.', path: 'backend/fixtures/factor_view_defaults.json', format: 'json', initial: json(defaults) },
   { id: 'factors', label: 'Factor catalog', description: 'Eligible factors and positive-return meaning. Array order defines the columns of P.', path: 'backend/fixtures/factor_definitions.json', format: 'json', initial: json(factors) },
@@ -37,6 +41,17 @@ export type Draft = Record<DocumentId, string>;
 export const initialDraft = Object.fromEntries(documents.map((doc) => [doc.id, doc.initial])) as Draft;
 export function isObject(value: JsonValue): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+export interface EvidenceSnapshot extends JsonObject {
+  name: string;
+  asOf: string;
+  values: JsonObject;
+}
+export function isEvidenceSnapshot(value: JsonValue): value is EvidenceSnapshot {
+  return isObject(value) && typeof value.name === 'string' && !!value.name.trim()
+    && typeof value.asOf === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.asOf)
+    && !Number.isNaN(Date.parse(value.asOf)) && new Date(value.asOf).toISOString().slice(0, 10) === value.asOf
+    && isObject(value.values) && Object.values(value.values).every((item) => typeof item === 'number' && Number.isFinite(item));
 }
 export function parseDocument(doc: ConfigDocument, source: string): { value: JsonValue; error: string | null } {
   if (doc.format === 'text') return { value: source, error: source.trim() ? null : 'Document must not be blank.' };
@@ -59,9 +74,15 @@ export function parseDocument(doc: ConfigDocument, source: string): { value: Jso
       if (doc.id === 'run') {
         if (!Array.isArray(object.models) || !object.models.length || object.models.some((model) => typeof model !== 'string' || !/^openai:[^\s:]+$/.test(model)) || new Set(object.models).size !== object.models.length) throw new Error('Models must be a non-empty list of unique openai:model identifiers.');
         if (!object.models.includes(object.model)) throw new Error('Selected model must be included in models.');
-        if (object.temperature !== undefined && object.temperature !== null && (typeof object.temperature !== 'number' || object.temperature < 0 || object.temperature > 2)) throw new Error('Temperature must be between 0 and 2, or null for the provider default.');
+        if ('temperature' in object) throw new Error('Remove temperature from run settings; convergence runs use the provider default.');
       }
-      if (doc.id === 'evidence' && (typeof object.name !== 'string' || typeof object.asOf !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(object.asOf) || !isObject(object.values) || Object.values(object.values).some((item) => typeof item !== 'number'))) throw new Error('Evidence needs name, asOf (YYYY-MM-DD) and numeric values.');
+      if (doc.id === 'pricing') {
+        if (object.currency !== 'USD' || object.unit !== 'per_million_tokens' || object.serviceTier !== 'standard' || typeof object.source !== 'string' || !object.source.trim() || typeof object.verifiedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(object.verifiedAt) || !isObject(object.models)) throw new Error('Pricing requires USD standard rates per_million_tokens, source, verifiedAt and a models object.');
+        if (Object.entries(object.models).some(([model, rate]) => !/^openai:[^\s:]+$/.test(model) || !isObject(rate) || ['input', 'cachedInput', 'output'].some((key) => typeof rate[key] !== 'number' || rate[key] < 0) || typeof rate.maxInputTokens !== 'number' || !Number.isSafeInteger(rate.maxInputTokens) || rate.maxInputTokens < 1)) throw new Error('Each model needs non-negative input/cachedInput/output rates and a positive integer maxInputTokens.');
+        if (Object.values(object.models).some((rate) => isObject(rate) && rate.cacheWrite !== undefined && (typeof rate.cacheWrite !== 'number' || rate.cacheWrite < 0))) throw new Error('Optional cacheWrite rates must be non-negative numbers.');
+      }
+      if (doc.id === 'evidence' && !isEvidenceSnapshot(object)) throw new Error('Evidence needs a non-blank name, valid asOf (YYYY-MM-DD) and numeric values.');
+      if (doc.id === 'examples' && (!Object.keys(object).length || Object.entries(object).some(([key, snapshot]) => !key.trim() || !isEvidenceSnapshot(snapshot)))) throw new Error('Each example needs a non-blank key and a snapshot with name, valid asOf (YYYY-MM-DD) and numeric values.');
       if (doc.id === 'defaults') {
         if (['target_horizon', 'q_return_convention'].some((key) => typeof object[key] !== 'string' || !String(object[key]).trim())) throw new Error('Horizon and return convention are required.');
         if (['q_min', 'q_max'].some((key) => object[key] !== null && typeof object[key] !== 'number')) throw new Error('Q bounds must be numbers or null.');

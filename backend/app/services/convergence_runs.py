@@ -17,6 +17,7 @@ from app.services.convergence_config import (
 )
 from app.services.orchestrators.factor_view_orchestrator import generate_from_messages, validate_factor_view_response
 from app.services.utils.aisuite_llm_client import AISuiteLLMClient
+from app.services.convergence_costs import update_costs
 
 logger = logging.getLogger(__name__)
 RUNNING = {"running", "stopping"}
@@ -256,7 +257,7 @@ class ConvergenceRuns:
             config = frozen["configuration"]
             run = config["run"]
             # Client construction validates credentials before creating a running batch; no API call.
-            client = self.client_factory(model=run["model"], temperature=run.get("temperature"))
+            client = self.client_factory(model=run["model"])
             directory = result_directory(self.store.root, run["outputDirectory"])
             directory.mkdir(parents=True, exist_ok=True)
             self.register_directory(directory)
@@ -269,6 +270,25 @@ class ConvergenceRuns:
                 "model": run["model"], "factorOrder": [item["key"] for item in config["factors"]],
                 "evidenceSnapshot": deepcopy(config["evidence"]), "frozen": frozen,
                 "responses": [], "log": [], "error": None, "outputPath": str(path), "legacy": False,
+                "metadata": {
+                    "model": run["model"],
+                    "costs": {
+                        "currency": "USD", "estimated": True, "complete": True,
+                        "reportedTotalUsd": None, "iterations": [],
+                        "pricing": {
+                            "model": run["model"],
+                            "source": config["pricing"]["source"],
+                            "verifiedAt": config["pricing"]["verifiedAt"],
+                            "unit": config["pricing"]["unit"],
+                            "serviceTier": config["pricing"]["serviceTier"],
+                            "rates": deepcopy(config["pricing"]["models"].get(run["model"])),
+                        },
+                    },
+                    "tokenUsage": {
+                        "source": "provider", "complete": True, "calls": [],
+                        "reportedTotals": {"prompt_tokens": None, "completion_tokens": None, "total_tokens": None},
+                    },
+                },
             }
             with path.open("x", encoding="utf-8") as stream:
                 stream.write(json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
@@ -310,11 +330,36 @@ class ConvergenceRuns:
             for iteration in range(1, payload["requestedIterations"] + 1):
                 if self.stop_event.is_set():
                     break
-                response = self.generate(
-                    deepcopy(payload["frozen"]["messages"]), contract=deepcopy(config["contract"]),
-                    evidence_snapshot=deepcopy(config["evidence"]), defaults=deepcopy(config["defaults"]),
-                    factor_definitions=deepcopy(config["factors"]), model=payload["model"], llm_client=client,
-                )
+                try:
+                    response = self.generate(
+                        deepcopy(payload["frozen"]["messages"]), contract=deepcopy(config["contract"]),
+                        evidence_snapshot=deepcopy(config["evidence"]), defaults=deepcopy(config["defaults"]),
+                        factor_definitions=deepcopy(config["factors"]), model=payload["model"], llm_client=client,
+                    )
+                finally:
+                    # Include billed responses even when JSON parsing or validation fails.
+                    with self.lock:
+                        tokens = payload["metadata"]["tokenUsage"]
+                        completion = deepcopy(getattr(client, "last_completion_metadata", None))
+                        tokens["calls"].append({
+                            "iteration": iteration,
+                            "requestedModel": payload["model"],
+                            **(completion if isinstance(completion, dict) else {"usage": None}),
+                        })
+                        for key in tokens["reportedTotals"]:
+                            values = [
+                                call["usage"].get(key) for call in tokens["calls"]
+                                if isinstance(call.get("usage"), dict)
+                            ]
+                            counts = [value for value in values if type(value) is int and value >= 0]
+                            tokens["reportedTotals"][key] = sum(counts) if counts else None
+                        tokens["complete"] = all(
+                            isinstance(call.get("usage"), dict)
+                            and all(type(call["usage"].get(key)) is int and call["usage"][key] >= 0
+                                    for key in tokens["reportedTotals"])
+                            for call in tokens["calls"]
+                        )
+                        update_costs(payload["metadata"])
                 with self.lock:
                     # Check invariants even for injected clients before the successful-call checkpoint.
                     validate_factor_view_response(

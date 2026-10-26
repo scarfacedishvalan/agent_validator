@@ -11,6 +11,38 @@ python -m uvicorn app.main:app --reload
 
 The API listens at `http://127.0.0.1:8000`; interactive OpenAPI docs are at `/docs`. The React workbench connects to this local API by default. On first use it creates the illustrative sample evidence snapshot if the database is empty.
 
+### Restart backend and frontend together (Windows)
+
+Double-click `restart-dev.cmd` in the project root to launch both services.
+The launcher keeps its window open so you can read success or error output.
+It also forwards arguments, for example `restart-dev.cmd -WhatIf` for a dry run.
+When launched from Explorer, credentials must already be available in its
+environment; otherwise launch from a terminal where `OPENAI_API_KEY` is set.
+
+From PowerShell:
+
+```powershell
+Set-Location C:\work\agent_validator
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\restart-dev.ps1
+```
+
+The script activates `C:\work\hackathon\.venv` in both service windows, switches
+to the correct working directories, stops listeners on ports 8000 and 5173
+(including a backend Uvicorn reload supervisor), and starts both services in
+separate persistent PowerShell windows. It checks backend health and frontend HTTP
+readiness. Set `OPENAI_API_KEY` in the calling terminal first so both windows
+inherit it; the script does not read or print credentials.
+
+Use `-WhatIf` to validate prerequisites without stopping or starting anything.
+Override the environment with `-VenvPath 'C:\path\to\.venv'`. Dependencies must
+already be installed; the script does not install them. A readiness failure leaves
+the windows open for diagnosis and exits with an error.
+
+**Warning:** any process listening on these ports is in scope for termination,
+even if unrelated to this project. Active convergence calls are forcibly
+interrupted; only already-saved checkpoints are retained. Review the ports before
+running, or use `-Confirm` for an additional confirmation prompt.
+
 SQLite is created at `backend/data/workbench.sqlite` by default. Set `AGENT_VALIDATOR_DB_PATH` to use another local path. The metric catalog is loaded from `backend/fixtures/metric_definitions.json`. The Convergence testing UI can edit this shared file; the mutation API reads the updated catalog on subsequent requests.
 
 Factor definitions are kept separately in `backend/fixtures/factor_definitions.json`. The output schema and example live in `backend/fixtures/factor_view_output_contract.json` and can be loaded with `app.services.factor_view_prompts.load_factor_view_output_contract()`. Active templates are `backend/prompts/system_prompt.txt` and `backend/prompts/user_prompt.txt`, with shared grounding rules in `backend/prompts/shared_financial_grounding_policy.txt`.
@@ -41,6 +73,29 @@ Each batch saves a single uniquely named JSON under `convergence_results/` (excl
 
 ## Convergence testing UI and API
 
+New batches persist an extensible `metadata` JSON object in every result
+checkpoint and export. The final, collapsed **Run metadata (JSON)** section in
+Results shows the frozen selected model, provider response model/ID when available,
+and per-attempt token usage, including cached/reasoning details when returned.
+`tokenUsage.reportedTotals` sums provider-reported prompt, completion and total
+tokens; cached and reasoning tokens are subsets, not added again. Totals cover
+only available counts: `complete: false` marks missing usage, and entirely
+unavailable counts are `null`, never estimated as zero. Failed validation still
+records usage if the provider returned it. Provider errors without usage cannot
+be counted; historical runs without metadata explicitly show it as unavailable.
+The Results tab shows estimated USD cost per attempted iteration and a total of
+available estimates. Rates come from editable `backend/fixtures/model_pricing.json`,
+also available as the **Model pricing** setup document with normal file sync.
+Rates, source and verification date are frozen at run start and saved under
+`metadata.costs`, so later edits cannot reprice historical runs. Rates use standard
+USD per million tokens; cached input is separated from uncached input and reasoning
+tokens are not charged twice. Missing pricing/usage, unsupported service tiers,
+cache writes without a configured rate and input above a configured context limit
+produce an explicit unavailable estimate, not zero. These are token-only estimates,
+not invoice amounts; no automatic web refresh or historical backfill is performed.
+The seeded optional `cacheWrite` rate assumes standard 30-minute cache retention
+(no retention override is sent by this client); adjust rates if that policy changes.
+
 The React Convergence testing tab connects to `/api/v1/convergence`. Launch the
 backend with the commands above and open `/#convergence` in the frontend.
 Set `OPENAI_API_KEY` in the backend's environment before launching it. The existing
@@ -48,9 +103,8 @@ AISuite adapter uses OpenAI JSON mode; use `openai:<model>` identifiers with a
 model that supports JSON mode. OpenAI SDK retries are disabled and each request
 has a 120-second timeout. No LLM request is made by loading, editing or previewing
 configuration; starting a batch requires explicit confirmation of billable calls.
-The optional run setting `temperature` (0–2) is sent with every call in the batch
-and recorded in the run's frozen configuration; omit it to use the provider
-default, for example with models that reject a temperature parameter.
+Convergence settings no longer accept `temperature`; requests omit it and use
+the provider default. Remove the field from any old unsaved run-settings drafts.
 
 The output contract orders each assessment's fields as `factor`, `rationale`,
 `status`, `q`, `confidence`, `evidenceRefs`, so the model writes its reasoning
@@ -63,7 +117,9 @@ The API exposes fixed document IDs rather than arbitrary filesystem paths:
 | ID | Source |
 |---|---|
 | `run` | `backend/fixtures/convergence_run_settings.json` |
+| `pricing` | `backend/fixtures/model_pricing.json` |
 | `evidence` | `backend/fixtures/evidence_snapshot_example.json` |
+| `examples` | `backend/fixtures/evidence_examples.json` |
 | `personalities` | `backend/fixtures/personalities.json` |
 | `defaults` | `backend/fixtures/factor_view_defaults.json` |
 | `factors` | `backend/fixtures/factor_definitions.json` |
@@ -72,6 +128,19 @@ The API exposes fixed document IDs rather than arbitrary filesystem paths:
 | `user` | `backend/prompts/user_prompt.txt` |
 | `policy` | `backend/prompts/shared_financial_grounding_policy.txt` |
 | `contract` | `backend/fixtures/factor_view_output_contract.json` |
+
+In **Setup -> Evidence snapshot**, select an example, inspect its JSON preview,
+click **Load example**, then confirm **Replace evidence snapshot**. This copies
+the whole snapshot into the active evidence file using the normal revision-checked
+autosave flow. It replaces existing observations and unsaved evidence edits;
+resolve any evidence file conflict first. The example library itself is unchanged.
+The new library contains synthetic mixed, positive-trend, recent-reversal,
+sparse-value-only and empty-evidence scenarios, not historical data or expected
+model answers. Missing observations stay absent, not zero. Edit/add named
+snapshots through **Evidence examples** or its local JSON file. Each entry uses the
+same `name`, `asOf`, `values` shape as the active snapshot; metric references are
+checked at preview/start. Edits to the library do not automatically change the
+active evidence, and loading examples never changes a batch's frozen inputs.
 
 Valid UI edits autosave after 600 ms. Writes compare the supplied SHA-256 revision
 against the current file and use temporary-file replacement with flushing.

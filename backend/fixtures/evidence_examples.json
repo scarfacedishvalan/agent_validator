@@ -1,0 +1,73 @@
+{
+  "baseline-mixed": {
+    "name": "Synthetic baseline - mixed factor signals",
+    "asOf": "2026-10-01",
+    "values": {
+      "HML_valuation_zscore": 1.6,
+      "HML_return_1m": -0.032,
+      "HML_return_3m": -0.071,
+      "HML_return_12m": -0.045,
+      "RMW_return_3m": 0.042,
+      "RMW_return_12m": 0.083,
+      "MOM_return_1m": -0.025,
+      "MOM_return_12m": 0.124,
+      "treasury_yield_10y": 0.042
+    }
+  },
+  "positive-trends": {
+    "name": "Synthetic scenario - positive trailing factor returns",
+    "asOf": "2026-10-01",
+    "values": {
+      "HML_valuation_zscore": 0.4,
+      "HML_return_1m": 0.018,
+      "HML_return_3m": 0.046,
+      "HML_return_12m": 0.092,
+      "RMW_return_3m": 0.031,
+      "RMW_return_12m": 0.074,
+      "MOM_return_1m": 0.021,
+      "MOM_return_12m": 0.153,
+      "treasury_yield_10y": 0.038
+    }
+  },
+  "recent-reversals": {
+    "name": "Synthetic scenario - recent returns oppose longer trends",
+    "asOf": "2026-10-01",
+    "values": {
+      "HML_valuation_zscore": 1.9,
+      "HML_return_1m": 0.041,
+      "HML_return_3m": -0.052,
+      "HML_return_12m": -0.118,
+      "RMW_return_3m": -0.036,
+      "RMW_return_12m": 0.061,
+      "MOM_return_1m": -0.067,
+      "MOM_return_12m": 0.182,
+      "treasury_yield_10y": 0.049
+    }
+  },
+  "contrarian-clear-reversals": {
+    "name": "Synthetic contrarian scenario - clear cross-horizon reversals",
+    "asOf": "2026-10-01",
+    "values": {
+      "HML_return_1m": 0.035,
+      "HML_return_3m": 0.075,
+      "HML_return_12m": -0.15,
+      "RMW_return_3m": -0.08,
+      "RMW_return_12m": 0.16,
+      "MOM_return_1m": -0.06,
+      "MOM_return_12m": 0.2
+    }
+  },
+  "sparse-value-only": {
+    "name": "Synthetic sparse scenario - value observations only",
+    "asOf": "2026-10-01",
+    "values": {
+      "HML_valuation_zscore": 1.6,
+      "HML_return_3m": -0.071
+    }
+  },
+  "no-observations": {
+    "name": "Synthetic empty scenario - no supplied observations",
+    "asOf": "2026-10-01",
+    "values": {}
+  }
+}

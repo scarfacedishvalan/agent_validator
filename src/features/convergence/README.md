@@ -5,7 +5,7 @@ Start the local FastAPI backend separately using the [backend instructions](../.
 
 ## Configuration and sync
 
-All ten documents are loaded from the backend, including
+All twelve documents are loaded from the backend, including
 `backend/fixtures/convergence_run_settings.json`. Valid edits autosave after 600 ms.
 Fields and JSON edit one draft. Backend validation is authoritative; invalid
 drafts stay visible and are not written to disk. The backend detects external
@@ -32,9 +32,23 @@ The selection must remain in the list. The initial reasoning choices are GPT-6
 Astra, GPT-5.6 Terra and GPT-5.6 Luna, as listed in OpenAI's
 [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning).
 The existing GPT-4o selection is preserved and labelled non-reasoning. This list
-is configurable, not an account-specific availability check. For reasoning
-models that reject custom temperature, clear Temperature to save `null` and omit
-the parameter from the provider request.
+is configurable, not an account-specific availability check. Temperature is not
+configurable in convergence runs; the backend omits the parameter. Remove it
+from any recovered old run-settings draft.
+
+Model pricing is a separate file-backed setup document,
+`backend/fixtures/model_pricing.json`, editable in Fields or JSON. Standard USD
+rates per million tokens and their source/date are frozen with each new run.
+
+In Setup, open **Evidence snapshot** to select, preview and load an example from
+`backend/fixtures/evidence_examples.json`. Confirming replacement copies the whole
+example into the active evidence snapshot and autosaves it, replacing any current
+evidence edits. Conflicts must be resolved first. The **Evidence examples**
+document lets you edit/add examples in Fields or JSON with the same local-file
+sync. Scenarios are synthetic, not historical observations or expected answers;
+sparse/empty scenarios omit missing values rather than inserting zeroes.
+Editing the library does not alter the active snapshot until explicitly loaded.
+Existing batches retain their frozen evidence.
 
 ## Runs
 
@@ -46,6 +60,12 @@ checkpoints it before stopping; there are no automatic retries or resumes.
 Results show Q traces and active-only running means, box plots with every active
 observation, cumulative coverage, ddof=1 summary statistics, the Q matrix, complete
 assessments, P/Q matrices, raw responses, frozen inputs and the execution log.
+They also show estimated USD cost per attempted iteration and the total of
+available estimates. A collapsed metadata JSON section at the end contains token
+usage, frozen pricing and cost breakdowns. Cached reads/writes are priced separately;
+reasoning tokens are already included in output counts. Missing usage/prices and
+unsupported pricing conditions are explicitly unavailable rather than zero.
+Old runs are not repriced using today's rates.
 Click a chart point or matrix row to select a response. Missing Q is never zero.
 Run history includes incomplete and legacy notebook batches; missing legacy
 provenance is labelled unavailable rather than reconstructed.

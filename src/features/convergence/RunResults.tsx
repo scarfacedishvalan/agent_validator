@@ -4,6 +4,7 @@ import type { FactorSeries, RunDetail, RunListing } from './api';
 
 export const isRunning = (status: string) => status === 'running' || status === 'stopping';
 const percent = (value: number | null | undefined) => value === null || value === undefined ? 'Unavailable' : `${(value * 100).toFixed(2)}%`;
+const dollars = (value: number | null) => value === null ? 'Unavailable' : `$${value.toFixed(8)}`;
 
 function SeriesChart({ series, coverage = false, onSelect }: { series: FactorSeries; coverage?: boolean; onSelect: (call: number) => void }) {
   const values = coverage ? series.coverage : series.values;
@@ -91,6 +92,12 @@ export function RunResults({ run, onStop }: { run: RunDetail; onStop: () => void
     {run.error && <div role="alert" className="config-error">{run.error}</div>}
     {run.persistenceError && <div role="alert" className="config-error">Checkpoint could not be saved: {run.persistenceError}. Export this run to preserve the available responses.</div>}
     {run.provenanceWarning && <div className="convergence-notice">{run.provenanceWarning}</div>}
+    <h3>Estimated cost per iteration (USD)</h3>
+    {run.metadata?.costs ? <>
+      <p className="results-footnote">Standard token-only estimates using rates frozen at run start, not invoice amounts. Reasoning tokens are already included in output tokens. Total of available estimates: <strong>{dollars(run.metadata.costs.reportedTotalUsd)}</strong>{!run.metadata.costs.complete && ' (partial; some iterations could not be priced)'}. Full rates and breakdowns are in Run metadata below.</p>
+      <div className="results-table-scroll"><table className="results-table"><thead><tr><th>Iteration</th><th>Estimated cost</th><th>Availability</th></tr></thead><tbody>{run.metadata.costs.iterations.map((entry) => <tr key={entry.iteration}><th>{entry.iteration}</th><td>{dollars(entry.estimatedUsd)}</td><td>{entry.reason ?? 'Estimated'}</td></tr>)}</tbody></table></div>
+      {!run.metadata.costs.iterations.length && <p>No completed attempts yet.</p>}
+    </> : <p className="results-footnote">Cost estimates were not recorded for this historical run.</p>}
     {!run.responses.length ? <div className="config-empty"><p>{isRunning(run.status) ? 'The live request is in progress. Closing this tab does not stop the backend batch.' : 'No validated responses were completed.'}</p></div> : <>
       <div className="factor-charts">{run.factorOrder.map((factor) => <article className="factor-diagnostic" key={factor}><h3>{factor}</h3><div className="factor-chart-grid"><div><h4>Q across calls</h4><SeriesChart series={run.diagnostics.series[factor]} onSelect={setSelectedCall} /><p><span className="legend-individual" />Individual Q <span className="legend-mean" />Running mean (active only)</p></div><div><h4>Active-Q distribution</h4><Distribution values={run.diagnostics.series[factor].values} onSelect={setSelectedCall} /><p>Box plot + every observed point</p></div><div><h4>Cumulative coverage</h4><SeriesChart coverage series={run.diagnostics.series[factor]} onSelect={setSelectedCall} /><p>Active-view fraction; abstentions are never zero Q</p></div></div></article>)}</div>
       <h3>Summary statistics</h3><div className="results-table-scroll"><table className="results-table"><thead><tr>{['Factor', 'Active', 'Abstained', 'Active fraction', 'Mean Q', 'Sample std Q', 'Min Q', 'Max Q'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{run.diagnostics.summary.map((row) => <tr key={row.factor}><th>{row.factor}</th><td>{row.active}</td><td>{row.abstained}</td>{[row.activeFraction, row.mean, row.sampleStd, row.min, row.max].map((value, index) => <td key={index}>{percent(value)}</td>)}</tr>)}</tbody></table></div><p className="results-footnote">Sample standard deviation uses ddof=1; fewer than two active values is unavailable. A stable running mean can coexist with wide individual variability and frequent abstentions. These diagnostics do not prove convergence.</p>
@@ -103,5 +110,6 @@ export function RunResults({ run, onStop }: { run: RunDetail; onStop: () => void
     </>}
     <details className="run-details"><summary>Frozen inputs and exact messages</summary>{run.frozen ? <><p>These are the messages and file revisions used for this batch, not the current editor contents.</p><pre>{JSON.stringify(run.frozen, null, 2)}</pre></> : <p>Unavailable for this legacy notebook run.</p>}</details>
     <details className="run-details" open><summary>Execution log</summary>{run.log?.length ? run.log.map((entry, index) => <p key={index}><code>{entry.at}</code> {entry.message}{entry.active !== undefined ? ` ${entry.active}/${run.factorOrder.length} active views.` : ''}</p>) : <p>{run.legacy ? 'No execution log was stored by the notebook.' : 'No completed calls yet.'}</p>}</details>
+    <details className="run-details"><summary>Run metadata (JSON)</summary><p>Provider-reported token usage for the selected model. Reported totals cover only available usage; complete is false if any attempted call has missing counts. Reasoning and cached tokens, when returned, are included in completion and prompt totals respectively, not additional tokens.</p><pre>{JSON.stringify(run.metadata ?? { tokenUsage: null, note: 'Token usage was not recorded for this run.' }, null, 2)}</pre></details>
   </section>;
 }

@@ -51,6 +51,14 @@ export interface SummaryRow {
 }
 export interface FactorSeries { values: (number | null)[]; runningMean: (number | null)[]; coverage: number[] }
 export interface RunDetail extends RunSummary {
+  metadata?: Record<string, JsonValue> & {
+    costs?: {
+      currency: string;
+      complete: boolean;
+      reportedTotalUsd: number | null;
+      iterations: { iteration: number; estimatedUsd: number | null; reason: string | null }[];
+    };
+  };
   factorOrder: string[];
   evidenceSnapshot: JsonValue;
   responses: FactorResponse[];

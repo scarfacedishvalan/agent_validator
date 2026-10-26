@@ -2,8 +2,10 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import shutil
+import sys
 from tempfile import TemporaryDirectory
 from threading import Event
+from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -16,6 +18,7 @@ from app.services.convergence_config import (
 )
 from app.services.convergence_runs import ConvergenceRuns, diagnostics
 from app.services.orchestrators.factor_view_orchestrator import generate_from_messages
+from app.services.utils.aisuite_llm_client import AISuiteLLMClient
 
 
 class ConvergenceTests(unittest.TestCase):
@@ -125,7 +128,7 @@ class ConvergenceTests(unittest.TestCase):
             document = client.get("/api/v1/convergence/config/documents").json()["documents"]["run"]
             settings = strict_json(document["content"])
             settings.update(models=["openai:gpt-6-astra", "openai:gpt-5.6-terra"],
-                            model="openai:gpt-5.6-terra", temperature=None, iterations=1)
+                            model="openai:gpt-5.6-terra", iterations=1)
             saved = client.put(route, json={"content": json.dumps(settings), "revision": document["revision"]})
             self.assertEqual(saved.status_code, 200, saved.text)
             reloaded = client.get("/api/v1/convergence/config/documents").json()["documents"]["run"]
@@ -141,7 +144,7 @@ class ConvergenceTests(unittest.TestCase):
                                   json={"confirmLiveCalls": True, "revisions": self.revisions()})
             self.assertEqual(created.status_code, 201, created.text)
             self.join()
-            self.manager.client_factory.assert_called_once_with(model="openai:gpt-6-astra", temperature=None)
+            self.manager.client_factory.assert_called_once_with(model="openai:gpt-6-astra")
             detail = self.manager.get(created.json()["id"])
             self.assertEqual(detail["model"], settings["model"])
             self.assertEqual(detail["frozen"]["configuration"]["run"]["models"], settings["models"])
@@ -154,11 +157,195 @@ class ConvergenceTests(unittest.TestCase):
             {"models": ["openai:gpt-6-astra", "openai:gpt-6-astra"]},
             {"models": ["gpt-6-astra"]},
             {"models": [False]},
+            {"temperature": 0.2},
+            {"temperature": None},
             {"models": ["openai:gpt-6-astra"], "model": "openai:missing"},
         ):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 self.store.save("run", json.dumps({**settings, **changes}), document["revision"])
             self.assertEqual(self.store.document("run")["revision"], document["revision"])
+
+    def test_pricing_document_validates_and_syncs_via_http(self):
+        app = create_app(self.root / "pricing.sqlite", convergence_root=self.root)
+        with TestClient(app) as client:
+            documents = client.get("/api/v1/convergence/config/documents").json()["documents"]
+            document = documents["pricing"]
+            pricing = strict_json(document["content"])
+            pricing["models"]["openai:gpt-6.1-sol"]["input"] = 3
+            route = "/api/v1/convergence/config/documents/pricing"
+            saved = client.put(route, json={"content": json.dumps(pricing), "revision": document["revision"]})
+            self.assertEqual(saved.status_code, 200, saved.text)
+            self.assertEqual(strict_json(self.store.document("pricing")["content"]), pricing)
+            pricing["models"]["openai:gpt-6.1-sol"]["input"] = -1
+            invalid = client.put(route, json={"content": json.dumps(pricing), "revision": saved.json()["revision"]})
+            self.assertEqual(invalid.status_code, 422, invalid.text)
+
+    def test_evidence_examples_load_save_preview_and_preserve_running_snapshot(self):
+        app = create_app(self.root / "examples.sqlite", convergence_root=self.root)
+        app.state.convergence_runs = self.manager
+        sparse_response = deepcopy(self.example)
+        for assessment in sparse_response["factorAssessments"]:
+            assessment.update(status="abstain", q=None, confidence=None, evidenceRefs=[],
+                              rationale="Insufficient supplied evidence for this test response.")
+        sparse_response.update(activeFactors=[], P=[], Q=[])
+        self.manager.generate = Mock(return_value=sparse_response)
+        self.set_run(iterations=1)
+        with TestClient(app) as client:
+            prefix = "/api/v1/convergence/config/documents"
+            documents = client.get(prefix).json()["documents"]
+            library_document = documents["examples"]
+            library = strict_json(library_document["content"])
+            original_library = deepcopy(library)
+            self.assertGreaterEqual(len(library), 5)
+            selected = deepcopy(library["sparse-value-only"])
+            loaded = client.put(f"{prefix}/evidence", json={
+                "content": json.dumps(selected), "revision": documents["evidence"]["revision"],
+            })
+            self.assertEqual(loaded.status_code, 200, loaded.text)
+            self.assertEqual(strict_json(self.store.document("evidence")["content"]), selected)
+            self.assertEqual(self.store.document("examples")["revision"], library_document["revision"])
+            preview = client.post("/api/v1/convergence/preview", json={
+                "documents": {key: item["content"] for key, item in self.store.documents().items()},
+            })
+            self.assertEqual(preview.status_code, 200, preview.text)
+            self.assertEqual(preview.json()["configuration"]["evidence"], selected)
+            self.assertIn('"HML_return_3m": -0.071', preview.json()["messages"][1]["content"])
+            self.assertNotIn("RMW_return_3m", preview.json()["configuration"]["evidence"]["values"])
+            created = self.manager.start(self.revisions())
+            self.join()
+            detail = self.manager.get(created["id"])
+            self.assertEqual(detail["status"], "completed", detail.get("error"))
+            self.assertEqual(detail["evidenceSnapshot"], selected)
+            library["sparse-value-only"]["values"]["HML_return_3m"] = 0.03
+            saved = client.put(f"{prefix}/examples", json={
+                "content": json.dumps(library), "revision": library_document["revision"],
+            })
+            self.assertEqual(saved.status_code, 200, saved.text)
+            self.assertEqual(strict_json(self.store.document("evidence")["content"]), selected)
+            self.assertEqual(self.manager.get(created["id"])["frozen"]["configuration"]["examples"], original_library)
+            stale = client.put(f"{prefix}/examples", json={
+                "content": json.dumps(original_library), "revision": library_document["revision"],
+            })
+            self.assertEqual(stale.status_code, 409, stale.text)
+            # External library edits use the normal file-sync read path.
+            self.store.path("examples").write_text(json.dumps(original_library), encoding="utf-8")
+            reloaded = client.get(prefix).json()["documents"]["examples"]
+            self.assertEqual(strict_json(reloaded["content"]), original_library)
+            self.assertEqual(strict_json(self.store.document("evidence")["content"]), selected)
+
+    def test_evidence_examples_validate_snapshots_dates_and_metric_references(self):
+        for library in (
+            {}, {"": {"name": "Empty key", "asOf": "2026-10-01", "values": {}}},
+            {"bad": {"name": "No values", "asOf": "2026-10-01"}},
+            {"bad": {"name": "Invalid date", "asOf": "2026-02-30", "values": {}}},
+            {"bad": {"name": "Bad value", "asOf": "2026-10-01", "values": {"HML_return_1m": True}}},
+        ):
+            with self.subTest(library=library), self.assertRaises(ValueError):
+                validate_document("examples", json.dumps(library), self.root)
+        library = strict_json(self.store.document("examples")["content"])
+        contents = {key: doc["content"] for key, doc in self.store.documents().items()}
+        for key, snapshot in library.items():
+            with self.subTest(example=key):
+                preview = resolve_configuration({**contents, "evidence": json.dumps(snapshot)}, self.root)
+                self.assertEqual(preview["configuration"]["evidence"], snapshot)
+        library["unknown"] = {"name": "Unknown metric", "asOf": "2026-10-01", "values": {"missing_metric": 1}}
+        with self.assertRaisesRegex(ValueError, "Evidence example unknown has undefined metrics"):
+            resolve_configuration({**contents, "examples": json.dumps(library)}, self.root)
+
+    def test_selected_model_reaches_actual_llm_adapter_request_and_stays_frozen(self):
+        selected_model = "openai:gpt-5.6-terra"
+        self.set_run(models=[selected_model, "openai:gpt-4o"],
+                     model=selected_model, iterations=2)
+        requests = []
+
+        def completion(**kwargs):
+            requests.append(deepcopy(kwargs))
+            if len(requests) == 1:
+                self.set_run(model="openai:gpt-4o")
+                document = self.store.document("pricing")
+                pricing = strict_json(document["content"])
+                pricing["models"][selected_model]["output"] = 999
+                self.store.save("pricing", json.dumps(pricing), document["revision"])
+            return SimpleNamespace(choices=[
+                SimpleNamespace(message=SimpleNamespace(content=json.dumps(self.example)))
+            ], model="provider-model-snapshot", usage={
+                "prompt_tokens": 100, "completion_tokens": 30, "total_tokens": 130,
+                "completion_tokens_details": {"reasoning_tokens": 20},
+                "prompt_tokens_details": {"cached_tokens": 50},
+            })
+
+        sdk_client = Mock()
+        sdk_client.chat.completions.create.side_effect = completion
+        fake_aisuite = SimpleNamespace(Client=Mock(return_value=sdk_client))
+        # Exercise the real manager, generator and LLM adapter; mock only the external SDK.
+        self.manager.client_factory = AISuiteLLMClient
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
+            patch.dict(sys.modules, {"aisuite": fake_aisuite}),
+        ):
+            created = self.manager.start(self.revisions())
+            self.join()
+        detail = self.manager.get(created["id"])
+        self.assertEqual(detail["status"], "completed", detail.get("error"))
+        self.assertEqual(len(requests), 2)
+        for request in requests:
+            self.assertEqual(request["model"], selected_model)
+            self.assertEqual(request["messages"], detail["frozen"]["messages"])
+            self.assertNotIn("temperature", request)
+        self.assertEqual(detail["model"], selected_model)
+        metadata = detail["metadata"]
+        self.assertEqual(metadata["model"], selected_model)
+        tokens = metadata["tokenUsage"]
+        self.assertTrue(tokens["complete"])
+        self.assertEqual(tokens["reportedTotals"], {
+            "prompt_tokens": 200, "completion_tokens": 60, "total_tokens": 260,
+        })
+        self.assertEqual(len(tokens["calls"]), 2)
+        self.assertEqual(tokens["calls"][1]["iteration"], 2)
+        self.assertEqual(tokens["calls"][0]["requestedModel"], selected_model)
+        self.assertEqual(tokens["calls"][0]["responseModel"], "provider-model-snapshot")
+        self.assertEqual(tokens["calls"][0]["usage"]["completion_tokens_details"]["reasoning_tokens"], 20)
+        saved = strict_json(Path(detail["outputPath"]).read_text(encoding="utf-8"))
+        self.assertEqual(saved["metadata"], metadata)
+        costs = metadata["costs"]
+        self.assertTrue(costs["complete"])
+        self.assertEqual(costs["pricing"]["rates"]["output"], 12)
+        self.assertAlmostEqual(costs["iterations"][0]["estimatedUsd"], 0.00047)
+        self.assertAlmostEqual(costs["reportedTotalUsd"], 0.00094)
+        self.assertEqual(strict_json(self.store.document("run")["content"])["model"], "openai:gpt-4o")
+
+    def test_invalid_response_still_persists_billed_usage_and_missing_usage_is_explicit(self):
+        self.set_run(iterations=3)
+        sdk_client = Mock()
+        sdk_client.chat.completions.create.side_effect = [
+            SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(self.example)))]),
+            SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="not JSON"))],
+                usage={"prompt_tokens": 20, "completion_tokens": 5, "total_tokens": 25},
+            ),
+        ]
+        self.manager.client_factory = AISuiteLLMClient
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
+            patch.dict(sys.modules, {"aisuite": SimpleNamespace(Client=Mock(return_value=sdk_client))}),
+            self.assertLogs("app.services.convergence_runs", level="ERROR"),
+        ):
+            created = self.manager.start(self.revisions())
+            self.join()
+        detail = self.manager.get(created["id"])
+        self.assertEqual(detail["status"], "failed")
+        self.assertEqual(detail["completedIterations"], 1)
+        tokens = detail["metadata"]["tokenUsage"]
+        self.assertFalse(tokens["complete"])
+        self.assertIsNone(tokens["calls"][0]["usage"])
+        self.assertEqual(tokens["calls"][1]["usage"]["total_tokens"], 25)
+        self.assertEqual(tokens["reportedTotals"]["total_tokens"], 25)
+        self.assertFalse(detail["metadata"]["costs"]["complete"])
+        self.assertIsNone(detail["metadata"]["costs"]["iterations"][0]["estimatedUsd"])
+        self.assertIsNotNone(detail["metadata"]["costs"]["iterations"][1]["estimatedUsd"])
+        self.assertEqual(sdk_client.chat.completions.create.call_count, 2)
+        saved = strict_json(Path(detail["outputPath"]).read_text(encoding="utf-8"))
+        self.assertEqual(saved["metadata"], detail["metadata"])
 
     def test_complete_run_has_frozen_messages_and_atomic_checkpoints(self):
         self.set_run(iterations=2)
@@ -181,6 +368,8 @@ class ConvergenceTests(unittest.TestCase):
         saved = strict_json(Path(detail["outputPath"]).read_text(encoding="utf-8"))
         self.assertEqual(len(saved["responses"]), 2)
         self.assertEqual(saved["frozen"]["messages"], calls[0])
+        self.assertFalse(saved["metadata"]["tokenUsage"]["complete"])
+        self.assertIsNone(saved["metadata"]["tokenUsage"]["reportedTotals"]["total_tokens"])
         self.assertFalse(list(Path(detail["outputPath"]).parent.glob("*.tmp")))
         second = self.manager.start(self.revisions())
         self.join()

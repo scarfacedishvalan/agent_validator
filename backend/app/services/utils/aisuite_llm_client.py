@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any, Mapping, Sequence
 
+from pydantic import BaseModel
+
 
 Message = Mapping[str, str]
 Tool = Mapping[str, Any]
@@ -20,6 +22,7 @@ class AISuiteLLMClient:
         self._client = ai.Client(provider_configs={"openai": {"timeout": 120.0, "max_retries": 0}})
         self._model = model
         self._temperature = temperature
+        self.last_completion_metadata: dict[str, Any] | None = None
 
     def complete(
         self,
@@ -32,6 +35,7 @@ class AISuiteLLMClient:
         `tools` is reserved for a future tool-calling implementation and is not sent.
         """
         del tools
+        self.last_completion_metadata = None
         # Omit temperature when unset so the provider default applies.
         options = {} if self._temperature is None else {"temperature": self._temperature}
         response = self._client.chat.completions.create(
@@ -40,6 +44,20 @@ class AISuiteLLMClient:
             response_format={"type": "json_object"},
             **options,
         )
+        usage = getattr(response, "usage", None)
+        if isinstance(usage, BaseModel):
+            usage = usage.model_dump(mode="json")
+        elif isinstance(usage, Mapping):
+            usage = dict(usage)
+        elif usage is not None:
+            raise ValueError("AISuite returned an unsupported token usage format.")
+        self.last_completion_metadata = {
+            "requestedModel": self._model,
+            "responseModel": getattr(response, "model", None),
+            "responseId": getattr(response, "id", None),
+            "serviceTier": getattr(response, "service_tier", None),
+            "usage": usage,
+        }
         choices = getattr(response, "choices", None)
         if not choices:
             raise ValueError("AISuite returned no completion choices.")

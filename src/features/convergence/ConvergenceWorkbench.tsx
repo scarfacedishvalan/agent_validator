@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, ArrowDownToLine, ArrowRight, BookOpen, Check, ChevronRight, Code2, Database, Eye, FileJson2, FileText, FlaskConical, FolderOpen, Layers3, Play, Plus, RotateCcw, Settings2, ShieldCheck, Trash2, Users } from 'lucide-react';
 import { WorkspaceSidebar } from '../../shared/components/WorkspaceSidebar';
-import { documents, initialDraft, isObject, resolveDraft, type DocumentId, type JsonValue } from './configuration';
+import { documents, initialDraft, isEvidenceSnapshot, isObject, resolveDraft, type DocumentId, type EvidenceSnapshot, type JsonValue } from './configuration';
 import { convergenceApi, type RunDetail } from './api';
 import { useConfigurationSync } from './useConfigurationSync';
 import { isRunning, RunHistory, RunResults } from './RunResults';
 import { JsonFields } from './JsonFields';
 import './convergence.css';
 
-const icons = { run: Settings2, evidence: Database, personalities: Users, defaults: Settings2, factors: Layers3, metrics: BookOpen, system: FileText, user: FileText, policy: ShieldCheck, contract: FileJson2 };
+const icons = { run: Settings2, pricing: FileJson2, evidence: Database, examples: Database, personalities: Users, defaults: Settings2, factors: Layers3, metrics: BookOpen, system: FileText, user: FileText, policy: ShieldCheck, contract: FileJson2 };
 const tabNames = ['Setup', 'Prompt preview', 'Results', 'Run history'] as const;
 type Tab = typeof tabNames[number];
 
@@ -28,12 +28,19 @@ export function ConvergenceWorkbench() {
   const [newPersonality, setNewPersonality] = useState('');
   const [personalityError, setPersonalityError] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [selectedExample, setSelectedExample] = useState('');
+  const [confirmExample, setConfirmExample] = useState(false);
   const resolved = resolveDraft(draft);
   const activeDocument = documents.find((doc) => doc.id === selected)!;
   const current = resolved.parsed[selected];
   const run = resolved.parsed.run.value;
   const runtime = resolved.parsed.defaults.value;
   const evidence = resolved.parsed.evidence.value;
+  const examples = resolved.parsed.examples;
+  const exampleOptions = !examples.error && isObject(examples.value)
+    ? Object.entries(examples.value).filter((entry): entry is [string, EvidenceSnapshot] => isEvidenceSnapshot(entry[1]))
+    : [];
+  const example = exampleOptions.find(([key]) => key === selectedExample)?.[1];
   const personalities = resolved.parsed.personalities.value;
   const personalityNames = isObject(personalities) ? Object.keys(personalities) : [];
   const currentPersonality = personalityNames.includes(editingPersonality) ? editingPersonality : personalityNames[0] ?? '';
@@ -61,6 +68,7 @@ export function ConvergenceWorkbench() {
     setSelected(id);
     setMode(id === 'contract' ? 'raw' : 'form');
     setConfirmReset(false);
+    setConfirmExample(false);
   }
   function addPersonality() {
     const name = newPersonality.trim();
@@ -189,6 +197,23 @@ export function ConvergenceWorkbench() {
                     {activeDocument.format === 'json' && <div className="editor-mode" role="group" aria-label="Editor mode"><button type="button" className={mode === 'form' ? 'active' : ''} onClick={() => setMode('form')}><Settings2 size={12} />Fields</button><button type="button" className={mode === 'raw' ? 'active' : ''} onClick={() => setMode('raw')}><Code2 size={12} />JSON</button></div>}
                   </div>
                   <p className="config-description">{activeDocument.description}</p>
+                  {selected === 'evidence' && <div className="inspector-card">
+                    <div className="config-field"><label htmlFor="evidence-example">Load an evidence example</label>
+                      <select id="evidence-example" value={example ? selectedExample : ''} onChange={(event) => { setSelectedExample(event.target.value); setConfirmExample(false); }}>
+                        <option value="">Select an example</option>
+                        {exampleOptions.map(([key, snapshot]) => <option key={key} value={key}>{snapshot.name} ({key})</option>)}
+                      </select>
+                    </div>
+                    <p>Synthetic scenarios only. Loading replaces the entire active evidence snapshot, including any unsaved edits, and autosaves to its local file. It does not change an in-progress run.</p>
+                    <button type="button" className="text-button" onClick={() => chooseDocument('examples')}>View and edit example library <ArrowRight size={12} /></button>
+                    {examples.error && <p className="error-ink" role="alert">Fix the evidence example library before loading: {examples.error}</p>}
+                    {example && <details className="run-details"><summary>Preview selected example ({Object.keys(example.values).length} observations)</summary><pre>{JSON.stringify(example, null, 2)}</pre></details>}
+                    {!confirmExample ? <button type="button" className="button button-outline" disabled={!example || sync.conflicts.includes('evidence') || sync.saving.includes('evidence')} onClick={() => setConfirmExample(true)}>Load example</button> : <div className="reset-confirm" role="alert">
+                      <p>Replace the active snapshot with {example?.name}? The current snapshot and its unsaved edits will be replaced.</p>
+                      <button type="button" className="button button-outline" onClick={() => setConfirmExample(false)}>Cancel</button>
+                      <button type="button" className="button button-primary" disabled={!example || sync.conflicts.includes('evidence') || sync.saving.includes('evidence')} onClick={() => { if (example) { updateDocument('evidence', example); setConfirmExample(false); } }}>Replace evidence snapshot</button>
+                    </div>}
+                  </div>}
                   {current.error && <div className="config-error" role="alert">{current.error} Your draft is retained; use JSON to fix structural errors.</div>}
                   {activeDocument.format === 'text' || mode === 'raw' ? (
                     <textarea className="config-code-editor" aria-label={`${activeDocument.label} source`} spellCheck={false} value={draft[selected]} onChange={(event) => setDraft((previous) => ({ ...previous, [selected]: event.target.value }))} />
@@ -206,8 +231,7 @@ export function ConvergenceWorkbench() {
                         </div>
                       </div>
                       <details className="run-details"><summary>Available models ({modelOptions.length})</summary><p>Edit the list here or in JSON. Changes sync to the models field in the local run-settings file. Keep the selected model in the list.</p><JsonFields value={runObject.models ?? []} label="Model identifier" path="run.models" onChange={(models) => updateDocument('run', { ...runObject, models })} /></details>
-                      <JsonFields value={runObject.temperature ?? null} label="Temperature (optional)" path="run.temperature" onChange={(temperature) => updateDocument('run', { ...runObject, temperature })} />
-                      <p className="results-footnote">Reasoning models may reject a custom temperature. Clear this field to omit it and use the provider default. Model access depends on your OpenAI account.</p>
+                      <p className="results-footnote">Temperature is omitted; models use their provider default. Model access depends on your OpenAI account.</p>
                       <div className="config-field"><label htmlFor="run-personality">Analyst personality</label><select id="run-personality" value={String(runObject.personality ?? '')} onChange={(event) => updateDocument('run', { ...runObject, personality: event.target.value })}>{!personalityNames.includes(String(runObject.personality)) && <option value={String(runObject.personality ?? '')}>Select an available personality</option>}{personalityNames.map((name) => <option key={name}>{name}</option>)}</select><button type="button" className="text-button personality-edit-link" onClick={() => { setEditingPersonality(String(runObject.personality)); chooseDocument('personalities'); }}>View and edit instructions <ArrowRight size={12} /></button></div>
                       <JsonFields value={runObject.outputDirectory ?? ''} label="Results directory (project-relative)" path="run.outputDirectory" onChange={(outputDirectory) => updateDocument('run', { ...runObject, outputDirectory })} />
                       <div className="run-protocol"><ShieldCheck size={20} /><div><strong>A controlled batch, by design</strong><p>Sequential calls. Fixed inputs. No reused responses, silent retries or automatic pass/fail threshold.</p></div></div>

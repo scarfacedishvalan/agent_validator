@@ -21,7 +21,9 @@ from app.services.factor_view_prompts import (
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DOCUMENT_PATHS = {
     "run": "backend/fixtures/convergence_run_settings.json",
+    "pricing": "backend/fixtures/model_pricing.json",
     "evidence": "backend/fixtures/evidence_snapshot_example.json",
+    "examples": "backend/fixtures/evidence_examples.json",
     "personalities": "backend/fixtures/personalities.json",
     "defaults": "backend/fixtures/factor_view_defaults.json",
     "factors": "backend/fixtures/factor_definitions.json",
@@ -62,6 +64,12 @@ def object_schema(properties: dict[str, Any], required: list[str]) -> dict[str, 
     return {"type": "object", "properties": properties, "required": required}
 
 
+EVIDENCE_SCHEMA = object_schema({
+    "name": STRING, "asOf": {"type": "string", "format": "date"},
+    "values": {"type": "object", "additionalProperties": NUMBER},
+}, ["name", "asOf", "values"])
+
+
 def result_directory(root: Path, configured: str) -> Path:
     directory = (root / configured).resolve()
     if directory == root.resolve() or not directory.is_relative_to(root.resolve()):
@@ -99,12 +107,28 @@ def validate_document(document_id: str, content: str, root: Path = PROJECT_ROOT)
             "personality": STRING, "model": {**STRING, "pattern": r"^[^:\s]+:[^\s]+$"},
             "models": {"type": "array", "minItems": 1, "uniqueItems": True,
                        "items": {**STRING, "pattern": r"^openai:[^\s:]+$"}},
-            "outputDirectory": STRING, "temperature": {"type": ["number", "null"], "minimum": 0, "maximum": 2},
+            "outputDirectory": STRING, "temperature": False,
         }, ["name", "iterations", "personality", "model", "models", "outputDirectory"]),
-        "evidence": object_schema({
-            "name": STRING, "asOf": {"type": "string", "format": "date"},
-            "values": {"type": "object", "additionalProperties": NUMBER},
-        }, ["name", "asOf", "values"]),
+        "pricing": object_schema({
+            "currency": {"const": "USD"}, "unit": {"const": "per_million_tokens"},
+            "serviceTier": {"const": "standard"}, "source": STRING,
+            "verifiedAt": {"type": "string", "format": "date"},
+            "models": {
+                "type": "object", "propertyNames": {"pattern": r"^openai:[^\s:]+$"},
+                "additionalProperties": object_schema({
+                    "input": {**NUMBER, "minimum": 0},
+                    "cachedInput": {**NUMBER, "minimum": 0},
+                    "cacheWrite": {**NUMBER, "minimum": 0},
+                    "output": {**NUMBER, "minimum": 0},
+                    "maxInputTokens": {"type": "integer", "minimum": 1},
+                }, ["input", "cachedInput", "output", "maxInputTokens"]),
+            },
+        }, ["currency", "unit", "serviceTier", "source", "verifiedAt", "models"]),
+        "evidence": EVIDENCE_SCHEMA,
+        "examples": {
+            "type": "object", "minProperties": 1, "propertyNames": STRING,
+            "additionalProperties": EVIDENCE_SCHEMA,
+        },
         "defaults": object_schema({
             "target_horizon": STRING, "q_return_convention": STRING,
             "q_min": {"type": ["number", "null"]}, "q_max": {"type": ["number", "null"]},
@@ -253,6 +277,10 @@ def resolve_configuration(contents: Mapping[str, str], root: Path = PROJECT_ROOT
     unknown_evidence = set(config["evidence"]["values"]) - metric_keys
     if unknown_evidence:
         raise ValueError(f"Evidence has undefined metrics: {', '.join(sorted(unknown_evidence))}")
+    for key, example in config["examples"].items():
+        unknown = set(example["values"]) - metric_keys
+        if unknown:
+            raise ValueError(f"Evidence example {key} has undefined metrics: {', '.join(sorted(unknown))}")
     defaults = config["defaults"]
     defaults["target_horizon"] = defaults["target_horizon"].strip()
     defaults["q_return_convention"] = defaults["q_return_convention"].strip()
