@@ -17,7 +17,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing one-month return for the value factor."
+    "description": "Trailing one-month cumulative return of the defined HML factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "HML_return_3m",
@@ -27,7 +27,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing three-month return for the value factor."
+    "description": "Trailing three-month cumulative return of the defined HML factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "HML_return_12m",
@@ -37,7 +37,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing twelve-month return for the value factor."
+    "description": "Trailing twelve-month cumulative return of the defined HML factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "RMW_return_1m",
@@ -47,7 +47,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing one-month return for the profitability factor."
+    "description": "Trailing one-month cumulative return of the defined RMW factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "RMW_return_3m",
@@ -57,7 +57,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing three-month return for the profitability factor."
+    "description": "Trailing three-month cumulative return of the defined RMW factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "RMW_return_12m",
@@ -67,7 +67,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing twelve-month return for the profitability factor."
+    "description": "Trailing twelve-month cumulative return of the defined RMW factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "MOM_return_1m",
@@ -77,7 +77,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing one-month return for the momentum factor."
+    "description": "Trailing one-month cumulative return of the defined MOM factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "MOM_return_3m",
@@ -87,7 +87,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing three-month return for the momentum factor."
+    "description": "Trailing three-month cumulative return of the defined MOM factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "MOM_return_12m",
@@ -97,7 +97,7 @@
     "displayScale": 100,
     "precision": 1,
     "mutationEligible": true,
-    "description": "Trailing twelve-month return for the momentum factor."
+    "description": "Trailing twelve-month cumulative return of the defined MOM factor spread, expressed as a decimal and not annualized. Bundled evidence values are synthetic observations with no benchmark adjustment; this is realized historical evidence, not a forecast."
   },
   {
     "key": "treasury_yield_10y",

@@ -26,3 +26,16 @@ EVIDENCE_METRIC_DEFINITIONS_JSON:
 
 EVIDENCE_SNAPSHOT_JSON:
 {evidence_snapshot_json}
+
+RETURN BASIS REMINDER
+
+In the bundled fixtures, historical returns are synthetic trailing cumulative
+returns of the defined factor spreads, expressed as decimals, unannualized, and
+without benchmark adjustment. For other snapshots, use the return basis specified
+in their metric definitions. Under the bundled runtime configuration, forecast the
+next 12-month cumulative return of that same spread. If runtime settings change,
+follow their configured horizon and convention. Historical observations are evidence,
+not forecasts; do not copy, annualize, or convert them unless the selected
+personality explicitly defines a mechanical proxy, which must be labeled a
+heuristic. The trailing lookback windows overlap and are not independent
+confirmations.

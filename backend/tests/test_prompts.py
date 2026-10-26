@@ -60,14 +60,14 @@ class FactorViewPromptTests(unittest.TestCase):
             {"target_horizon", "q_return_convention", "q_min", "q_max"},
         )
         self.assertEqual(defaults["target_horizon"], "12 months")
-        self.assertEqual(defaults["q_return_convention"], "annualized excess return")
+        self.assertEqual(defaults["q_return_convention"], "12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)")
         self.assertIsNone(defaults["q_min"])
         self.assertIsNone(defaults["q_max"])
 
     def test_renders_system_template_without_unresolved_placeholders(self):
         prompt = render_factor_view_system_prompt(
             target_horizon="12 months",
-            q_return_convention="annualized excess return",
+            q_return_convention="12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)",
             q_min=-0.2,
             q_max=0.2,
             factor_definitions=[{"key": "HML", "description": "Value factor"}],
@@ -86,7 +86,7 @@ class FactorViewPromptTests(unittest.TestCase):
         policy = 'Replacement policy with literal braces: {"rule": "{target_horizon}"}'
         prompt = render_factor_view_system_prompt(
             target_horizon="12 months",
-            q_return_convention="annualized excess return",
+            q_return_convention="12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)",
             q_min=None,
             q_max=None,
             factor_definitions=[],
@@ -104,7 +104,7 @@ class FactorViewPromptTests(unittest.TestCase):
         ):
             render_factor_view_system_prompt(
                 target_horizon="12 months",
-                q_return_convention="annualized excess return",
+                q_return_convention="12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)",
                 q_min=None,
                 q_max=None,
                 factor_definitions=[],
@@ -114,6 +114,8 @@ class FactorViewPromptTests(unittest.TestCase):
 
     def test_loads_output_schema_and_example(self):
         contract = load_factor_view_output_contract()
+        defaults_path = Path(__file__).resolve().parents[1] / "fixtures" / "factor_view_defaults.json"
+        defaults = json.loads(defaults_path.read_text(encoding="utf-8"))
         example = contract["example"]
         self.assertEqual(example["factorOrder"], ["HML", "RMW", "MOM"])
         self.assertEqual(len(example["factorAssessments"]), 3)
@@ -125,11 +127,12 @@ class FactorViewPromptTests(unittest.TestCase):
             self.assertLess(keys.index("rationale"), keys.index("status"))
             self.assertLess(keys.index("status"), keys.index("evidenceRefs"))
         self.assertEqual(contract["properties"]["Q"]["type"], "array")
+        self.assertEqual(example["qReturnConvention"], defaults["q_return_convention"])
 
     def test_renders_context_for_client_without_unresolved_placeholders(self):
         prompt = render_factor_view_user_prompt(
             target_horizon="12 months",
-            q_return_convention="annualized excess return",
+            q_return_convention="12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)",
             q_min=-0.2,
             q_max=0.2,
             factor_definitions=[{"key": "HML", "description": "Value factor"}],
@@ -149,7 +152,7 @@ class FactorViewPromptTests(unittest.TestCase):
     def test_renders_selected_personality_and_preserves_literal_braces(self):
         prompt = render_factor_view_user_prompt(
             target_horizon="12 months",
-            q_return_convention="annualized excess return",
+            q_return_convention="12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)",
             q_min=None,
             q_max=None,
             factor_definitions=[],

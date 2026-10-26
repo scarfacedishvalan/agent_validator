@@ -53,6 +53,13 @@ Custom snapshots may still omit unavailable observations without imputation.
 Editing the library does not alter the active snapshot until explicitly loaded.
 Existing batches retain their frozen evidence.
 
+The bundled q convention is the expected cumulative return over the next 12 months
+on the same defined factor spread, expressed as a decimal, unannualized, and before
+benchmark adjustment. Bundled 1-, 3-, and 12-month inputs are synthetic trailing
+cumulative returns; their windows overlap. The model does not convert historical
+returns into q or subtract a benchmark. If the downstream optimizer needs excess
+returns, define and apply a separate deterministic benchmark conversion.
+
 ## Runs
 
 One backend-owned batch runs at a time. Inputs and exact rendered messages are

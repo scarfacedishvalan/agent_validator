@@ -12,4 +12,8 @@ The trend-following and contrarian personas use structured, discretionary decisi
 
 Default runtime values for prompt construction are in `../fixtures/factor_view_defaults.json`. An orchestrator can load these values and override them for a particular request before rendering either prompt.
 
+The bundled experiment defines q as the expected cumulative return over the next 12 months of the same defined factor spread, expressed as a decimal, unannualized, and before benchmark adjustment. Bundled 1-, 3-, and 12-month observations are synthetic trailing cumulative returns; their lookback windows overlap and are not independent evidence. The prompt and metric definitions distinguish these historical observations from the forecast. A separate, deterministic benchmark conversion can be applied later if a downstream optimizer requires excess returns.
+
+These are bundled defaults, not fixed backend constraints. If `target_horizon` or `q_return_convention` changes, update the associated metric definitions, evidence basis and any mechanical persona rules to remain dimensionally consistent. The prompt renderers already pass these configured values and documents through.
+
 `shared_financial_grounding_policy.txt` defines persona-independent principles for interpreting evidence and forming views. The system template includes it through the `{shared_financial_grounding_policy}` placeholder, using the same string-formatting mechanism as the runtime inputs. The renderer loads the file by default; pass `shared_financial_grounding_policy="..."` to `render_factor_view_system_prompt()` to replace it. Blank policies are rejected, and braces within policy text are preserved literally. The policy remains separate from agent-specific behavioral instructions.

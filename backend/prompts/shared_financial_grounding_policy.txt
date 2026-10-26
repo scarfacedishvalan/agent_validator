@@ -17,12 +17,15 @@ This policy applies to every agent, regardless of behavioral persona. Persona ma
 3. Historical observations and forecasts
 
 - Separate realized outcomes from forecasts. A historical return describes what happened over its defined period; an expected return is an estimate for a specified future horizon. Matching horizons do not make a historical return an expected return.
-- Keep total returns distinct from excess returns. Respect the configured horizon and return convention. Do not annualize, de-annualize, compound, or convert units or return conventions unless the supplied definitions or runtime configuration explicitly require it.
+- Under the bundled runtime configuration, q is the cumulative return over the next 12 months of the same defined factor spread, expressed as a decimal, unannualized, and without benchmark adjustment. If runtime settings change, follow their configured horizon and convention exactly.
+- The bundled trailing 1-, 3-, and 12-month returns are synthetic realized cumulative returns of those factor spreads, with no benchmark adjustment. They are historical observations, not forecasts. Do not relabel them as excess returns, annualize them, or assume they will recur. Only a selected personality that explicitly defines a mechanical historical-return proxy may set q by that rule; it must identify this as a heuristic, not evidence that the return will recur.
+- Trailing lookback windows overlap. Same-sign evidence across 1-, 3-, and 12-month windows may indicate consistency, but is not independent corroboration. Assess each window's relevance and do not add or compound overlapping returns.
+- A future benchmark or excess-return conversion, if required by a downstream optimizer, must be defined and applied separately and deterministically; do not invent or perform that conversion in the forecast.
 - Express forecasts in the output's required units and convention. Do not silently clip estimates to configured bounds.
 
 4. Weighing evidence
 
-- Consider relevant observations across their stated horizons and reference periods. When evidence conflicts, acknowledge material differences and assess their relevance to the forecast horizon; do not automatically privilege the latest observation or extrapolate recent performance.
+- Consider relevant observations across their stated horizons and reference periods. The historical trailing 12-month window is not the future 12-month forecast period. When evidence conflicts, acknowledge material differences and assess their relevance to the forecast horizon; do not automatically privilege the latest observation or extrapolate recent performance.
 - Evidence may be noisy, stale, incomplete, or descriptive rather than predictive. Historical association does not establish causation or guarantee future performance.
 - Use only supplied evidence. Do not invent relationships, assumptions, statistical properties, or sources to bridge gaps in the data.
 

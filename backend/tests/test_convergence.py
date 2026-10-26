@@ -498,7 +498,7 @@ class ConvergenceTests(unittest.TestCase):
         def response(active, q):
             return {"factorOrder": ["A", "B", "C"], "activeFactors": active,
                     "Q": [[v] for v in q], "asOf": "2026-10-01",
-                    "targetHorizon": "12 months", "qReturnConvention": "annualized excess return"}
+                    "targetHorizon": "12 months", "qReturnConvention": "12-month cumulative return on the same defined factor spread (decimal, unannualized; no benchmark adjustment)"}
         payload = {"factorOrder": ["A", "B", "C"], "responses": [
             response(["B", "A"], [.04, .02]), response(["A"], [.06]), response([], []),
         ]}

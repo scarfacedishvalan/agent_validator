@@ -51,6 +51,16 @@ Render client-ready messages with `app.services.factor_view_prompts.render_facto
 
 Default prompt runtime values are in `backend/fixtures/factor_view_defaults.json` (`target_horizon`, `q_return_convention`, `q_min`, and `q_max`). An orchestrator can load this single JSON file and override any values before calling the prompt renderers. `null` bounds mean no configured lower or upper bound.
 
+The bundled convergence experiment defines q as the expected cumulative return
+over the next 12 months on the same defined factor spread, expressed as a decimal,
+unannualized and before benchmark adjustment. The bundled 1-, 3-, and 12-month
+evidence values are synthetic trailing cumulative returns of those spreads.
+Lookback windows overlap and are not independent observations. Historical values
+are evidence, not forecasts; prompts distinguish forward q from trailing returns.
+The model does not perform risk-free or benchmark conversion. If a downstream
+optimizer later requires excess returns, specify the benchmark and perform that
+conversion separately and deterministically.
+
 An AISuite-backed factor-view orchestrator is available as `app.services.orchestrators.factor_view_orchestrator`. From the repository root, set `OPENAI_API_KEY` and run `python run_factor_view_orchestrator.py`; it uses `backend/fixtures/evidence_snapshot_example.json` by default. Alternatively, from `backend`, run `python -m app.services.orchestrators.factor_view_orchestrator`. Pass `--snapshot <path>` and optionally `--model openai:<model>` to use another snapshot or model. The orchestrator includes the output schema in the system message and validates the returned JSON and matrix alignment. Its `tools` parameter is reserved and currently unused.
 
 The orchestrator CLI prints only `P` and `Q` as JSON, with each `P` row on its own line and all of `Q` on one line; `generate_factor_views()` still returns the full validated response.
