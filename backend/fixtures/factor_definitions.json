@@ -17,6 +17,7 @@
     "description": "Profitability factor representing the return of firms with robust operating profitability minus firms with weak operating profitability.",
     "positive_direction": "A positive factor return means the robust profitability side outperformed the weak profitability side.",
     "evidence_metric_keys": [
+      "RMW_return_1m",
       "RMW_return_3m",
       "RMW_return_12m"
     ]
@@ -28,6 +29,7 @@
     "positive_direction": "A positive factor return means recent winners outperformed recent losers.",
     "evidence_metric_keys": [
       "MOM_return_1m",
+      "MOM_return_3m",
       "MOM_return_12m"
     ]
   }

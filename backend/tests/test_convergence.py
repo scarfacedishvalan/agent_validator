@@ -55,7 +55,8 @@ class ConvergenceTests(unittest.TestCase):
         preview = self.store.freeze(self.revisions())
         self.assertIn("OUTPUT_JSON_SCHEMA:", preview["messages"][0]["content"])
         self.assertIn("SHARED FINANCIAL GROUNDING POLICY", preview["messages"][0]["content"])
-        self.assertIn('"HML_return_1m": -0.032', preview["messages"][1]["content"])
+        expected_return = preview["configuration"]["evidence"]["values"]["HML_return_1m"]
+        self.assertIn(f'"HML_return_1m": {expected_return}', preview["messages"][1]["content"])
         selected_personality = preview["configuration"]["run"]["personality"]
         self.assertIn(selected_personality, preview["messages"][1]["content"])
         for instruction in preview["configuration"]["personalities"][selected_personality]:
@@ -183,12 +184,12 @@ class ConvergenceTests(unittest.TestCase):
     def test_evidence_examples_load_save_preview_and_preserve_running_snapshot(self):
         app = create_app(self.root / "examples.sqlite", convergence_root=self.root)
         app.state.convergence_runs = self.manager
-        sparse_response = deepcopy(self.example)
-        for assessment in sparse_response["factorAssessments"]:
+        abstaining_response = deepcopy(self.example)
+        for assessment in abstaining_response["factorAssessments"]:
             assessment.update(status="abstain", q=None, confidence=None, evidenceRefs=[],
                               rationale="Insufficient supplied evidence for this test response.")
-        sparse_response.update(activeFactors=[], P=[], Q=[])
-        self.manager.generate = Mock(return_value=sparse_response)
+        abstaining_response.update(activeFactors=[], P=[], Q=[])
+        self.manager.generate = Mock(return_value=abstaining_response)
         self.set_run(iterations=1)
         with TestClient(app) as client:
             prefix = "/api/v1/convergence/config/documents"
@@ -197,7 +198,7 @@ class ConvergenceTests(unittest.TestCase):
             library = strict_json(library_document["content"])
             original_library = deepcopy(library)
             self.assertGreaterEqual(len(library), 5)
-            selected = deepcopy(library["sparse-value-only"])
+            selected = deepcopy(library["weak-mixed-signals"])
             loaded = client.put(f"{prefix}/evidence", json={
                 "content": json.dumps(selected), "revision": documents["evidence"]["revision"],
             })
@@ -209,14 +210,14 @@ class ConvergenceTests(unittest.TestCase):
             })
             self.assertEqual(preview.status_code, 200, preview.text)
             self.assertEqual(preview.json()["configuration"]["evidence"], selected)
-            self.assertIn('"HML_return_3m": -0.071', preview.json()["messages"][1]["content"])
-            self.assertNotIn("RMW_return_3m", preview.json()["configuration"]["evidence"]["values"])
+            self.assertIn('"HML_return_3m": -0.003', preview.json()["messages"][1]["content"])
+            self.assertEqual(len(preview.json()["configuration"]["evidence"]["values"]), 9)
             created = self.manager.start(self.revisions())
             self.join()
             detail = self.manager.get(created["id"])
             self.assertEqual(detail["status"], "completed", detail.get("error"))
             self.assertEqual(detail["evidenceSnapshot"], selected)
-            library["sparse-value-only"]["values"]["HML_return_3m"] = 0.03
+            library["weak-mixed-signals"]["values"]["HML_return_3m"] = 0.03
             saved = client.put(f"{prefix}/examples", json={
                 "content": json.dumps(library), "revision": library_document["revision"],
             })
@@ -251,6 +252,36 @@ class ConvergenceTests(unittest.TestCase):
         library["unknown"] = {"name": "Unknown metric", "asOf": "2026-10-01", "values": {"missing_metric": 1}}
         with self.assertRaisesRegex(ValueError, "Evidence example unknown has undefined metrics"):
             resolve_configuration({**contents, "examples": json.dumps(library)}, self.root)
+
+    def test_contrarian_example_includes_defined_intermediate_momentum_reversal(self):
+        contents = {key: doc["content"] for key, doc in self.store.documents().items()}
+        snapshot = strict_json(contents["examples"])["contrarian-clear-reversals"]
+        preview = resolve_configuration({**contents, "evidence": json.dumps(snapshot)}, self.root)
+        config = preview["configuration"]
+        metric = next(item for item in config["metrics"] if item["key"] == "MOM_return_3m")
+        self.assertEqual(metric["displayScale"], 100)
+        self.assertIn("three-month", metric["description"])
+        momentum = next(item for item in config["factors"] if item["key"] == "MOM")
+        self.assertIn("MOM_return_3m", momentum["evidence_metric_keys"])
+        self.assertEqual(snapshot["values"]["MOM_return_3m"], -0.12)
+        self.assertLess(snapshot["values"]["MOM_return_1m"], 0)
+        self.assertGreater(snapshot["values"]["MOM_return_12m"], 0)
+        self.assertIn('"MOM_return_3m": -0.12', preview["messages"][1]["content"])
+
+    def test_all_bundled_evidence_has_matching_factor_return_horizons(self):
+        frozen = self.store.freeze(self.revisions())
+        config = frozen["configuration"]
+        metric_keys = {item["key"] for item in config["metrics"]}
+        required = {f"{factor}_return_{horizon}" for factor in ("HML", "RMW", "MOM")
+                    for horizon in ("1m", "3m", "12m")}
+        self.assertTrue(required <= metric_keys)
+        for factor in config["factors"]:
+            expected = {f"{factor['key']}_return_{horizon}" for horizon in ("1m", "3m", "12m")}
+            self.assertTrue(expected <= set(factor["evidence_metric_keys"]))
+        for key, snapshot in {"active": config["evidence"], **config["examples"]}.items():
+            with self.subTest(snapshot=key):
+                self.assertTrue(required <= set(snapshot["values"]))
+                self.assertTrue(all(type(snapshot["values"][metric]) in (int, float) for metric in required))
 
     def test_selected_model_reaches_actual_llm_adapter_request_and_stays_frozen(self):
         selected_model = "openai:gpt-5.6-terra"

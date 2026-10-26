@@ -40,6 +40,16 @@
     "description": "Trailing twelve-month return for the value factor."
   },
   {
+    "key": "RMW_return_1m",
+    "label": "RMW return - 1 month",
+    "group": "Quality - RMW",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing one-month return for the profitability factor."
+  },
+  {
     "key": "RMW_return_3m",
     "label": "RMW return - 3 months",
     "group": "Quality - RMW",
@@ -68,6 +78,16 @@
     "precision": 1,
     "mutationEligible": true,
     "description": "Trailing one-month return for the momentum factor."
+  },
+  {
+    "key": "MOM_return_3m",
+    "label": "MOM return - 3 months",
+    "group": "Momentum - MOM",
+    "unit": "%",
+    "displayScale": 100,
+    "precision": 1,
+    "mutationEligible": true,
+    "description": "Trailing three-month return for the momentum factor."
   },
   {
     "key": "MOM_return_12m",

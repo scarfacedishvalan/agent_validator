@@ -46,7 +46,10 @@ example into the active evidence snapshot and autosaves it, replacing any curren
 evidence edits. Conflicts must be resolved first. The **Evidence examples**
 document lets you edit/add examples in Fields or JSON with the same local-file
 sync. Scenarios are synthetic, not historical observations or expected answers;
-sparse/empty scenarios omit missing values rather than inserting zeroes.
+all bundled examples and the active default supply 1-, 3- and 12-month returns
+for HML, RMW and MOM. Weak-mixed and observed-flat scenarios replace the former
+sparse/empty examples. Flat returns are synthetic observations, not missing values.
+Custom snapshots may still omit unavailable observations without imputation.
 Editing the library does not alter the active snapshot until explicitly loaded.
 Existing batches retain their frozen evidence.
 

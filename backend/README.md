@@ -135,8 +135,11 @@ the whole snapshot into the active evidence file using the normal revision-check
 autosave flow. It replaces existing observations and unsaved evidence edits;
 resolve any evidence file conflict first. The example library itself is unchanged.
 The new library contains synthetic mixed, positive-trend, recent-reversal,
-sparse-value-only and empty-evidence scenarios, not historical data or expected
-model answers. Missing observations stay absent, not zero. Edit/add named
+weak-mixed-signal and observed-flat-return scenarios, not historical data or expected
+model answers. All bundled examples and the active default include 1-, 3- and
+12-month returns for HML, RMW and MOM. Flat-scenario zeros are explicitly synthetic
+observed returns, not missing-value replacements. Custom snapshots may still omit
+unavailable observations; no automatic imputation is performed. Edit/add named
 snapshots through **Evidence examples** or its local JSON file. Each entry uses the
 same `name`, `asOf`, `values` shape as the active snapshot; metric references are
 checked at preview/start. Edits to the library do not automatically change the
