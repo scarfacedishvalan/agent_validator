@@ -268,6 +268,17 @@ class ConvergenceTests(unittest.TestCase):
         self.assertGreater(snapshot["values"]["MOM_return_12m"], 0)
         self.assertIn('"MOM_return_3m": -0.12', preview["messages"][1]["content"])
 
+    def test_trend_following_example_has_persistent_positive_trends(self):
+        contents = {key: doc["content"] for key, doc in self.store.documents().items()}
+        snapshot = strict_json(contents["examples"])["trend-following-persistent-trends"]
+        preview = resolve_configuration({**contents, "evidence": json.dumps(snapshot)}, self.root)
+        for factor in ("HML", "RMW", "MOM"):
+            values = [snapshot["values"][f"{factor}_return_{horizon}"]
+                      for horizon in ("1m", "3m", "12m")]
+            with self.subTest(factor=factor):
+                self.assertTrue(all(value > 0 for value in values))
+        self.assertIn('"MOM_return_12m": 0.18', preview["messages"][1]["content"])
+
     def test_all_bundled_evidence_has_matching_factor_return_horizons(self):
         frozen = self.store.freeze(self.revisions())
         config = frozen["configuration"]

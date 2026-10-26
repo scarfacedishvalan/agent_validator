@@ -1,7 +1,7 @@
 {
-  "name": "Factor-view repeatability-4",
+  "name": "Factor-view repeatability-5",
   "iterations": 10,
-  "personality": "Contrarian Mean-Reversion Analyst",
+  "personality": "Trend-Following Analyst",
   "model": "openai:gpt-6.1-sol",
   "models": [
     "openai:gpt-6-astra",

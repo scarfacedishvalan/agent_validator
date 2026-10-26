@@ -65,30 +65,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .brand-copy strong { font-size: 15px; line-height: 1; font-weight: 800; letter-spacing: 0; }
 .brand-copy span { color: #9daf9e; font: 9px var(--mono); letter-spacing: 0; }
 
-.workspace-switcher {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 34px 0 27px;
-  padding: 10px 9px;
-  border: 1px solid #315449;
-  border-radius: 7px;
-  color: #bdc9bf;
-}
-.workspace-avatar, .user-avatar { display: grid; flex: 0 0 auto; place-items: center; }
-.workspace-avatar {
-  width: 29px;
-  height: 29px;
-  border-radius: 6px;
-  background: #d8a864;
-  color: #3d3020;
-  font-size: 13px;
-  font-weight: 800;
-}
-.workspace-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.workspace-copy span { color: #9daf9e; font-size: 10px; }
-.workspace-copy strong { overflow: hidden; color: #f1f4ee; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-switcher > svg { color: #93a89a; }
 .nav-label { margin: 0 10px 10px; color: #83998d; font: 9px var(--mono); }
 .primary-nav { display: flex; flex-direction: column; gap: 4px; }
 .nav-item {
@@ -108,24 +84,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .nav-item:hover { background: #21483c; color: #fff; }
 .nav-item.active { background: #294f40; color: #f5f8ef; }
 .nav-item.active > svg { color: var(--lime); }
-.nav-item.disabled { color: #789084; cursor: default; }
-.nav-item.disabled:hover { background: transparent; color: #789084; }
 .nav-indicator { position: absolute; top: 10px; right: 0; bottom: 10px; width: 3px; border-radius: 3px 0 0 3px; background: var(--lime); }
-.nav-count { margin-left: auto; color: #a5bb9f; font: 10px var(--mono); }
-.nav-soon { margin-left: auto; padding: 3px 5px; border: 1px solid #3e5b50; border-radius: 3px; color: #96a99a; font: 8px var(--mono); }
 .sidebar-bottom { margin-top: auto; }
 .local-status { display: flex; align-items: center; gap: 8px; padding: 11px 10px 14px; color: #a9b9ac; font-size: 10px; }
 .status-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #93c35d; box-shadow: 0 0 0 3px rgb(147 195 93 / 13%); }
 .status-dot.offline { background: #d6785f; box-shadow: 0 0 0 3px rgb(214 120 95 / 13%); }
 .local-lock { margin-left: auto; color: #779187; font: 9px var(--mono); }
-.help-link { display: flex; width: 100%; align-items: center; gap: 9px; padding: 12px 10px; border: 0; border-top: 1px solid #315449; background: transparent; color: #c1cec4; text-align: left; font-size: 11px; cursor: pointer; }
-.help-link svg:last-child { margin-left: auto; color: #81998c; }
-.user-row { display: flex; align-items: center; gap: 9px; padding: 13px 8px 4px; border-top: 1px solid #315449; }
-.user-avatar { width: 29px; height: 29px; border-radius: 50%; background: #a6b8a4; color: #233b30; font-size: 9px; font-weight: 800; }
-.user-row > div:nth-child(2) { display: flex; flex: 1; flex-direction: column; gap: 2px; }
-.user-row strong { font-size: 11px; font-weight: 600; }
-.user-row span { color: #91a79a; font-size: 9px; }
-.user-row > svg { color: #9bb0a2; }
 
 .main-content { width: calc(100% - 246px); min-height: 100vh; margin-left: 246px; }
 .topbar {
@@ -322,12 +286,11 @@ h2 { color: #293a31; font-size: 15px; line-height: 1.3; font-weight: 700; letter
   .workbench-shell { display: block; }
   .sidebar { position: static; width: 100%; height: auto; flex-direction: row; align-items: center; gap: 18px; padding: 12px 20px; }
   .brand-lockup { flex: 0 0 auto; padding: 0; }
-  .workspace-switcher, .nav-label, .sidebar-bottom { display: none; }
+  .nav-label, .sidebar-bottom { display: none; }
   .primary-nav { min-width: 0; flex: 1; flex-direction: row; justify-content: flex-end; gap: 3px; }
   .nav-item { min-height: 35px; gap: 7px; padding: 0 9px; font-size: 10px; }
   .nav-item > svg { width: 15px; }
   .nav-indicator { inset: auto 10px 0; width: auto; height: 2px; border-radius: 2px 2px 0 0; }
-  .nav-count, .nav-soon { display: none; }
   .main-content { width: 100%; min-height: calc(100vh - 59px); margin-left: 0; }
   .workspace-grid { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); }
   .topbar { height: 49px; }

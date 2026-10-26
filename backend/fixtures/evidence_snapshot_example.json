@@ -1,15 +1,15 @@
 {
-  "name": "Synthetic contrarian scenario - clear cross-horizon reversals",
+  "name": "Synthetic trend-following scenario - persistent positive trends",
   "asOf": "2026-10-01",
   "values": {
-    "HML_return_1m": 0.035,
-    "HML_return_3m": 0.075,
-    "HML_return_12m": -0.15,
-    "RMW_return_1m": -0.035,
-    "RMW_return_3m": -0.08,
-    "RMW_return_12m": 0.16,
-    "MOM_return_1m": -0.06,
-    "MOM_return_3m": -0.12,
-    "MOM_return_12m": 0.2
+    "HML_return_1m": 0.02,
+    "HML_return_3m": 0.06,
+    "HML_return_12m": 0.14,
+    "RMW_return_1m": 0.015,
+    "RMW_return_3m": 0.05,
+    "RMW_return_12m": 0.12,
+    "MOM_return_1m": 0.025,
+    "MOM_return_3m": 0.08,
+    "MOM_return_12m": 0.18
   }
 }

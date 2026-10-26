@@ -33,6 +33,21 @@
       "treasury_yield_10y": 0.038
     }
   },
+  "trend-following-persistent-trends": {
+    "name": "Synthetic trend-following scenario - persistent positive trends",
+    "asOf": "2026-10-01",
+    "values": {
+      "HML_return_1m": 0.02,
+      "HML_return_3m": 0.06,
+      "HML_return_12m": 0.14,
+      "RMW_return_1m": 0.015,
+      "RMW_return_3m": 0.05,
+      "RMW_return_12m": 0.12,
+      "MOM_return_1m": 0.025,
+      "MOM_return_3m": 0.08,
+      "MOM_return_12m": 0.18
+    }
+  },
   "recent-reversals": {
     "name": "Synthetic scenario - recent returns oppose longer trends",
     "asOf": "2026-10-01",

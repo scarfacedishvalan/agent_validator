@@ -278,7 +278,7 @@ export function MutationWorkbench() {
 
   return (
     <div className="workbench-shell">
-      <WorkspaceSidebar active="mutations" apiStatus={apiStatus} profileCount={profiles.length} />
+      <WorkspaceSidebar active="mutations" apiStatus={apiStatus} />
 
       <main className="main-content" id="mutation-builder">
         <header className="topbar">
